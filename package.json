@@ -1,0 +1,69 @@
+{
+  "name": "tcgplayer-private-api",
+  "version": "0.1.0",
+  "description": "Unofficial read-only client for authorized TCGplayer seller orders and packing slips",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "compatibility:check": "npm run build && node scripts/compatibility-check.mjs",
+    "package:verify": "node scripts/verify-package.mjs",
+    "audit": "npm audit --audit-level=high",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run package:verify",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "tcgplayer",
+    "seller",
+    "orders",
+    "packing-slip"
+  ],
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Reldnahc/tcgplayer-private-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Reldnahc/tcgplayer-private-api/issues"
+  },
+  "homepage": "https://github.com/Reldnahc/tcgplayer-private-api#readme",
+  "overrides": {
+    "esbuild": "0.28.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "20.19.39",
+    "eslint": "10.8.0",
+    "prettier": "3.9.6",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.66.0",
+    "vitest": "4.1.10"
+  }
+}

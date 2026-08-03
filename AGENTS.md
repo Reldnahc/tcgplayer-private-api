@@ -12,7 +12,7 @@ The primary consumer is:
 
 ## Current Phase
 
-The repository is in bootstrap and architecture-discovery mode. Do not begin implementation until the user explicitly requests it. Initial work should identify the smallest reusable slice of upstream behavior, verify reuse rights, document observed contracts, and design the npm package boundary.
+The initial read-only npm client implementation is authorized. Keep work limited to the smallest reusable seller authentication/session, order confirmation, and packing-slip surface; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
 
 ## Scope
 
