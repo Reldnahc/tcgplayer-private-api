@@ -2,17 +2,17 @@
 
 ## Purpose
 
-This repository contains an unofficial, narrowly scoped client for the private TCGplayer seller interface. It exists to isolate seller authentication/session behavior and the minimum endpoints required to confirm orders and retrieve packing slips for authorized sellers.
+This repository contains an unofficial, narrowly scoped npm client for the private TCGplayer seller interface. It exists to isolate seller authentication/session behavior and the minimum endpoints required to confirm orders and retrieve packing slips for authorized sellers, while remaining reusable by applications unrelated to TCGPlayerAlert.
 
 The primary consumer is:
 
 - <https://github.com/Reldnahc/TCGPlayerAlert>
 
-“Private API” means an undocumented interface used by TCGplayer's seller experience. It does not mean this repository may contain private credentials, captured customer data, or access-control bypasses.
+"Private API" means an undocumented interface used by TCGplayer's seller experience. It does not mean this repository may contain private credentials, captured customer data, or access-control bypasses.
 
 ## Current Phase
 
-The repository is in bootstrap and architecture-discovery mode. Do not begin implementation until the user explicitly requests it. Initial work should identify the smallest reusable slice of upstream behavior, verify reuse rights, document observed contracts, and choose a language/package boundary.
+The repository is in bootstrap and architecture-discovery mode. Do not begin implementation until the user explicitly requests it. Initial work should identify the smallest reusable slice of upstream behavior, verify reuse rights, document observed contracts, and design the npm package boundary.
 
 ## Scope
 
@@ -25,6 +25,7 @@ This repository owns:
 - Retrieval of packing-slip content and metadata.
 - Typed errors, retry hints, compatibility detection, and sanitized contract fixtures.
 - A stable, documented client contract that applications can version and consume.
+- npm packaging, compiled runtime output, type declarations, and release compatibility.
 
 This repository does not own:
 
@@ -37,6 +38,22 @@ This repository does not own:
 - Marking orders shipped, purchasing postage, changing inventory, or other seller mutations unless separately requested, reviewed, and explicitly authorized.
 
 If a feature can be expressed without knowledge of TCGplayer's private transport, it probably belongs in the consuming application rather than here.
+
+## npm Package Contract
+
+- This repository must build an installable npm package with a finalized, non-placeholder package name before its first registry publication.
+- Publish runnable JavaScript and type declarations. Consumers must not need to compile this repository's source language.
+- Declare a deliberate `exports` map and expose only supported entry points. Do not support deep imports into internal paths.
+- Keep the default entry point safe for server-side Node.js use. Never expose credentials or authenticated sessions to browser bundles.
+- Declare supported Node.js versions through `engines` and test every supported major version in CI.
+- Keep framework, database, UI, filesystem, and application configuration dependencies out of the public client.
+- Accept caller-provided implementations for session persistence, logging, clocks, and transport customization where needed.
+- Do not import from or depend on TCGPlayerAlert. Examples may demonstrate integration without coupling package types or defaults to that app.
+- Use semantic versioning. Treat public types, export paths, runtime behavior, and documented error semantics as part of the versioned contract.
+- Before release, validate the exact packed artifact with `npm pack --dry-run`, install its tarball into a clean consumer fixture, and run public API tests there.
+- Local adjacent-repository development may use an npm `file:../package` dependency or packed tarball, but consumers must import only by package name.
+- Keep runtime dependencies minimal and justify each one. Put build, test, and type-only tooling in development dependencies.
+- Include only necessary compiled output, type declarations, documentation, notices, and runtime assets in the published package.
 
 ## Upstream Reference and Provenance
 
@@ -77,6 +94,7 @@ Before copying or adapting any source:
 - Accept caller-provided correlation IDs without logging sensitive order or customer data.
 - Keep transport details internal so endpoints can change without forcing needless consumer changes.
 - Version the published contract using semantic versioning once the first public release exists.
+- Export the smallest useful API. Prefer a configured client instance and explicit capability methods over global state or endpoint-shaped functions.
 
 ## Architecture Rules
 
@@ -87,6 +105,7 @@ Before copying or adapting any source:
 - Treat HTML, JSON, PDFs, redirects, cookies, filenames, and headers as untrusted input.
 - Inject networking, clocks, randomness, and credential/session storage for deterministic testing.
 - Do not require a database, web framework, background worker, or UI to use the client.
+- Do not require the TCGPlayerAlert repository, its environment variables, or its domain types to use the client.
 - Avoid process-global sessions and mutable singleton clients.
 - Do not write packing slips or session material to disk unless the caller supplies an explicit storage abstraction.
 - Put every observed private-API assumption in code-adjacent documentation or a contract test.
@@ -115,7 +134,7 @@ Before copying or adapting any source:
 
 ## Coding Standards
 
-Record the language, runtime, package format, and supported versions in an architecture decision before implementation. Once chosen, configure one canonical formatter, linter, strict type checker where supported, test runner, dependency audit, and build command.
+Record the implementation language, module formats, supported Node.js versions, and build layout in an architecture decision before implementation. The output must be a standard npm package with type declarations. Once chosen, configure one canonical formatter, linter, strict type checker, test runner, dependency audit, build command, and package verification command.
 
 - Use clear names, small cohesive modules, and explicit public types.
 - Validate boundary inputs at runtime; static typing is not a substitute for validation.
@@ -127,6 +146,7 @@ Record the language, runtime, package format, and supported versions in an archi
 - Comments should explain observed constraints and decisions, not obvious syntax.
 - Delete dead code instead of commenting it out.
 - Pin dependency ranges deliberately, commit the lockfile, and justify security-sensitive or heavyweight dependencies.
+- Define package entry points through `package.json`; never rely on consumers reaching into build directories.
 - Use UTF-8, platform-neutral paths, and cross-platform APIs.
 - Maintain backward compatibility within a major version or publish a clear migration guide.
 
@@ -138,16 +158,17 @@ Record the language, runtime, package format, and supported versions in an archi
 - Every bug fix requires a regression test that fails for the original defect.
 - Keep tests deterministic by injecting clocks, randomness, and transport.
 - Live tests require explicit credentials and an opt-in command, must default to read-only operations, and must never print response bodies containing PII.
+- Test the installed tarball from a clean external consumer fixture so source-only imports and missing published files fail before release.
 - Formatting, linting, type checking, tests, build, and security checks must pass before a change is complete.
 
 ## Release and Consumer Discipline
 
 - Keep `main` releasable and use focused branches and commits.
-- Publish explicit versions and release notes for consumer-visible changes.
+- Publish explicit npm versions and release notes for consumer-visible changes.
 - Classify breaking changes conservatively; private endpoint drift does not justify silently breaking the client contract.
 - Document the minimum supported runtime and the tested TCGplayer behavior date/revision.
 - Provide a changelog and migration notes once releases begin.
-- The consuming application must depend on a released version or immutable commit, never an unpinned branch.
+- Consuming applications must depend on a released npm version or immutable package artifact, never an unpinned branch or relative source import.
 - Coordinate contract changes with consumer compatibility tests.
 
 ## Definition of Done
@@ -164,7 +185,7 @@ A change is done only when:
 
 ## Early Decisions Still Required
 
-- Language, runtime, packaging, and distribution method.
+- Implementation language, supported Node.js versions, module formats, package name, and registry.
 - Exact authentication/session acquisition and renewal boundaries.
 - Verified upstream license or permission status and reuse strategy.
 - Initial read-only endpoint inventory and observed response formats.
