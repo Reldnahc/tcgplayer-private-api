@@ -163,7 +163,9 @@ Record the implementation language, module formats, supported Node.js versions, 
 
 ## Release and Consumer Discipline
 
-- Keep `main` releasable and use focused branches and commits.
+- Keep `main` releasable and work directly on it by default. Do not create feature branches or pull requests unless the user explicitly requests them.
+- Push focused, validated commits directly to `origin/main` after confirming the diff contains only intended package changes.
+- Synchronize with `origin/main` using a fast-forward-safe workflow before pushing. Never force-push or rewrite published `main` history without explicit user authorization.
 - Publish explicit npm versions and release notes for consumer-visible changes.
 - Classify breaking changes conservatively; private endpoint drift does not justify silently breaking the client contract.
 - Document the minimum supported runtime and the tested TCGplayer behavior date/revision.
