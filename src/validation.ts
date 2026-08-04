@@ -6,6 +6,7 @@ import type {
   SellerOrderSearchSummary,
   SellerOrderShippingAddress,
   SellerOrderTax,
+  SellerOrderTrackingNumber,
   SellerOrderTransaction,
 } from "./types.js";
 
@@ -174,6 +175,19 @@ function parseProduct(value: unknown, path: string): SellerOrderProduct {
   };
 }
 
+function parseTrackingNumber(
+  value: unknown,
+  path: string,
+): SellerOrderTrackingNumber {
+  const source = record(value, path);
+  return {
+    createdAt: stringValue(source, "createdAt", path),
+    carrier: stringValue(source, "carrier", path),
+    trackingNumber: stringValue(source, "trackingNumber", path),
+    status: stringValue(source, "status", path),
+  };
+}
+
 export function parseSearchSellerOrdersResult(
   value: unknown,
 ): SearchSellerOrdersResult {
@@ -218,7 +232,13 @@ export function parseSellerOrderDetail(value: unknown): SellerOrderDetail {
       parseProduct(product, `response.products[${index}]`),
     ),
     refundStatus: stringValue(source, "refundStatus", path),
-    trackingNumbers: stringArrayValue(source, "trackingNumbers", path),
+    trackingNumbers: arrayValue(source, "trackingNumbers", path).map(
+      (trackingNumber, index) =>
+        parseTrackingNumber(
+          trackingNumber,
+          `response.trackingNumbers[${index}]`,
+        ),
+    ),
     allowedActions: stringArrayValue(source, "allowedActions", path),
   };
 }

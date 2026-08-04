@@ -27,6 +27,7 @@ export type {
   SellerOrderSortField,
   SellerOrderStatusFilter,
   SellerOrderTax,
+  SellerOrderTrackingNumber,
   SellerOrderTransaction,
   SortDirection,
   TcgplayerSellerClientOptions,

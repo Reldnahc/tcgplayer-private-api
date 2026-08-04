@@ -105,6 +105,13 @@ export interface SellerOrderProduct {
   readonly skuId: string;
 }
 
+export interface SellerOrderTrackingNumber {
+  readonly createdAt: string;
+  readonly carrier: string;
+  readonly trackingNumber: string;
+  readonly status: string;
+}
+
 export interface SellerOrderDetail {
   readonly createdAt: string;
   readonly status: string;
@@ -121,7 +128,7 @@ export interface SellerOrderDetail {
   readonly shippingAddress: SellerOrderShippingAddress;
   readonly products: readonly SellerOrderProduct[];
   readonly refundStatus: string;
-  readonly trackingNumbers: readonly string[];
+  readonly trackingNumbers: readonly SellerOrderTrackingNumber[];
   readonly allowedActions: readonly string[];
 }
 

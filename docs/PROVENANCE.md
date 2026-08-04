@@ -32,4 +32,13 @@ The following files were consulted to identify those facts:
 - `app/integrations/tcgplayer/client/get-seller-order.server.ts`
 - `app/integrations/tcgplayer/client/export-packing-slips.server.ts`
 
+## Live compatibility observation
+
+An opt-in, read-only compatibility check against an authorized seller account on 2026-08-03 confirmed order search, exact-order confirmation, order-detail retrieval, and packing-slip export. No response bodies, credentials, order values, customer data, tracking values, or document bytes were retained.
+
+The schema-only observations needed for compatibility were:
+
+- `trackingNumbers` contains objects with the string fields `createdAt`, `carrier`, `trackingNumber`, and `status`.
+- Packing-slip bytes may be served as `application/octet-stream`; the observed body had a valid `%PDF-` signature.
+
 These interfaces are undocumented and may change without notice. The package validates responses and reports compatibility errors instead of silently accepting drift.

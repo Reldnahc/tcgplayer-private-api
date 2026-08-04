@@ -177,6 +177,23 @@ describe("TcgplayerSellerClient", () => {
     });
   });
 
+  it("accepts a signed PDF served as an octet stream", async () => {
+    const { fetchImplementation } = fetchQueue([
+      new Response(syntheticPdf, {
+        headers: { "content-type": "application/octet-stream" },
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.getPackingSlip({
+      orderNumber: syntheticOrderNumber,
+      timezoneOffsetMinutes: 0,
+    });
+
+    expect(result.bytes).toEqual(syntheticPdf);
+    expect(result.contentType).toBe("application/pdf");
+  });
+
   it("rejects non-PDF packing-slip responses", async () => {
     const { fetchImplementation } = fetchQueue([
       new Response("not a pdf", {
@@ -191,6 +208,20 @@ describe("TcgplayerSellerClient", () => {
         timezoneOffsetMinutes: 0,
       }),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("rejects the obsolete string-only tracking shape", async () => {
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse({
+        ...syntheticOrder,
+        trackingNumbers: ["SYNTHETIC000000000"],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(client.getOrder(syntheticOrderNumber)).rejects.toMatchObject({
+      code: "INVALID_RESPONSE",
+    });
   });
 
   it("rejects malformed remote order data", async () => {

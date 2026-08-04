@@ -62,7 +62,14 @@ export const syntheticOrder: SellerOrderDetail = {
     },
   ],
   refundStatus: "None",
-  trackingNumbers: [],
+  trackingNumbers: [
+    {
+      createdAt: "2026-01-02T04:05:06.000Z",
+      carrier: "Synthetic Carrier",
+      trackingNumber: "SYNTHETIC000000000",
+      status: "InTransit",
+    },
+  ],
   allowedActions: ["View"],
 };
 

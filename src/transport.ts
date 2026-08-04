@@ -453,7 +453,9 @@ export class SellerApiTransport {
       bytes[2] === 0x44 &&
       bytes[3] === 0x46 &&
       bytes[4] === 0x2d;
-    if (type !== "application/pdf" || !hasPdfSignature) {
+    const supportedPdfType =
+      type === "application/pdf" || type === "application/octet-stream";
+    if (!supportedPdfType || !hasPdfSignature) {
       throw new TcgplayerApiError(
         "INVALID_RESPONSE",
         "TCGplayer returned invalid packing-slip PDF data.",
