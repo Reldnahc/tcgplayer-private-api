@@ -255,9 +255,11 @@ describe("TcgplayerSellerClient", () => {
       algorithm: "sales_synonym_v2",
       from: 0,
       size: 12,
-      filters: {
-        match: { productName: "Synthetic Card" },
-        term: { productLineName: ["Synthetic Game"] },
+    });
+    expect(JSON.parse(String(requests[0]?.init?.body)).filters).toStrictEqual({
+      term: {
+        productName: ["Synthetic Card"],
+        productLineName: ["Synthetic Game"],
       },
     });
   });

@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.4.3 - Unreleased
+
+- Restore catalog name filtering after TCGplayer moved product-name searches to the term-filter array contract.
+
 ## 0.4.2 - Unreleased
 
 - Correct positive inventory additions to submit Seller Portal's absolute post-add quantity alongside the relative add quantity.

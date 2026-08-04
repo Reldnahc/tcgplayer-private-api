@@ -809,10 +809,12 @@ export class TcgplayerSellerClient {
       from: offset,
       size: limit,
       filters: {
-        match: { productName: query },
-        ...(productLineName === undefined
-          ? {}
-          : { term: { productLineName: [productLineName] } }),
+        term: {
+          productName: [query],
+          ...(productLineName === undefined
+            ? {}
+            : { productLineName: [productLineName] }),
+        },
       },
       listingSearch: {
         context: { cart: {} },
