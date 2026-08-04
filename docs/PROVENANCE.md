@@ -26,6 +26,7 @@ The inspected revision showed these seller behaviors:
 - Observed packing-slip format values: `ByRelease` and `Default`
 - Marketplace search origin: `https://mp-search-api.tcgplayer.com`
 - Marketplace search: `POST /v1/search/request`
+- Marketplace product details: `GET /v2/product/{productId}/details`, including SKU, condition, printing variant, and language
 - Seller inventory filter: live listings for channel `0`, scoped by `sellerKey`, with quantity at least one
 
 The following files were consulted to identify those facts:
@@ -39,13 +40,16 @@ The following files were consulted to identify those facts:
 - `app/integrations/tcgplayer/client/export-pull-sheet.server.ts`
 - `app/integrations/tcgplayer/client/apply-order-tracking.server.ts`
 - `app/integrations/tcgplayer/client/get-search-results.server.ts`
+- `app/integrations/tcgplayer/client/get-product-details.server.ts`
 - `app/features/seller-management/routes/api.seller-inventory.server.ts`
 
 The current public Seller Portal orders bundle was also inspected on 2026-08-03 to confirm protocol shapes independently. It showed carrier detection at `POST /orders/detect-carrier?api-version=2.0`, shipment without tracking at `POST /orders/{encodedOrderNumber}/ship-no-tracking?api-version=2.0`, and bulk status updates at `POST /orders/status-updates?api-version=2.0` with the status `Shipped`. No mutation was sent during inspection.
 
 A read-only marketplace compatibility observation on 2026-08-03 confirmed seller-key inventory filtering and product searches filtered by condition. Only schema and aggregate counts were inspected; listing identifiers, names, prices, and credentials were not retained.
 
-The public Seller Portal pricing bundle (`/admin/scripts/pricing/main-built.31397.js`) was inspected on 2026-08-03 and rechecked on 2026-08-04 after definite request rejections exposed a route mismatch. The bulk Pricing page saves through `POST https://store.tcgplayer.com/admin/pricing/updateinventory`, with `type=Pricing` and `isStaged=false` for live inventory. Its submitted model includes product, condition, channel, current quantity, price, custom-price identifier, and reserve quantity fields. A separate product-detail screen uses `/admin/product/updateinventory`; it is not the contract implemented by this package. The package independently implements only a price-only bulk-Pricing variant with `AddToQuantity` and `ExistingQuantity` fixed at zero.
+The public Seller Portal pricing bundle (`/admin/scripts/pricing/main-built.31397.js`) was inspected on 2026-08-03 and rechecked on 2026-08-04 after definite request rejections exposed a route mismatch. The bulk Pricing page saves through `POST https://store.tcgplayer.com/admin/pricing/updateinventory`, with `type=Pricing` and `isStaged=false` for live inventory. Its submitted model includes product, condition, channel, relative add-to-quantity, current quantity, price, custom-price identifier, and reserve quantity fields. A separate product-detail screen uses `/admin/product/updateinventory`; it is not the contract implemented by this package. The package independently implements a price-only variant with `AddToQuantity` fixed at zero and a separate positive-addition variant that requires a fresh current quantity and an initial price. `ExistingQuantity` remains fixed at the observed value of zero in both methods.
+
+Anonymous read-only compatibility observations on 2026-08-04 confirmed product-name catalog search and the product-details SKU schema. The observed normalized condition identifiers match TCGplayer's published condition catalog: Near Mint through Unopened map to IDs 1 through 6. Only schema and synthetic examples were retained.
 
 A controlled live compatibility check on 2026-08-04 resubmitted one eligible listing's current price and current quantity through the corrected bulk-Pricing contract. Seller Portal accepted the no-op save; no price, quantity, listing identifiers, or credentials were retained.
 

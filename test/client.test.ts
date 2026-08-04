@@ -159,6 +159,104 @@ describe("TcgplayerSellerClient", () => {
     });
   });
 
+  it("searches the catalog by product name and optional product line", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        errors: [],
+        results: [
+          {
+            totalResults: 1,
+            results: [
+              {
+                productId: 123,
+                productName: "Synthetic Card",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set",
+                rarityName: "Rare",
+                customAttributes: { number: "42" },
+                marketPrice: 3.5,
+                sellerListable: true,
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.searchCatalogProducts({
+      query: "Synthetic Card",
+      productLineName: "Synthetic Game",
+      limit: 12,
+    });
+
+    expect(result).toEqual({
+      totalProducts: 1,
+      products: [
+        {
+          productId: 123,
+          productName: "Synthetic Card",
+          productLineName: "Synthetic Game",
+          setName: "Synthetic Set",
+          rarityName: "Rare",
+          cardNumber: "42",
+          marketPrice: 3.5,
+          sellerListable: true,
+        },
+      ],
+    });
+    expect(JSON.parse(String(requests[0]?.init?.body))).toMatchObject({
+      algorithm: "sales_synonym_v2",
+      from: 0,
+      size: 12,
+      filters: {
+        match: { productName: "Synthetic Card" },
+        term: { productLineName: ["Synthetic Game"] },
+      },
+    });
+  });
+
+  it("reads a catalog product and maps its SKU conditions", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        productId: 123,
+        productName: "Synthetic Card",
+        productLineName: "Synthetic Game",
+        setName: "Synthetic Set",
+        rarityName: null,
+        customAttributes: { number: "42" },
+        marketPrice: 3.5,
+        sellerListable: true,
+        skus: [
+          {
+            sku: 456,
+            condition: "Lightly Played",
+            variant: "Holofoil",
+            language: "English",
+          },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.getCatalogProduct({ productId: 123 });
+
+    expect(result.skus).toEqual([
+      {
+        productConditionId: 456,
+        conditionId: 2,
+        condition: "Lightly Played",
+        printing: "Holofoil",
+        language: "English",
+      },
+    ]);
+    expect(requests[0]?.url).toBe(
+      "https://mp-search-api.tcgplayer.com/v2/product/123/details",
+    );
+    expect(requests[0]?.init?.method).toBe("GET");
+    expect(requests[0]?.init?.body).toBeUndefined();
+  });
+
   it("submits a price-only update using the observed Seller Portal form contract", async () => {
     const { fetchImplementation, requests } = fetchQueue([
       new Response(null, { status: 204 }),
@@ -216,6 +314,69 @@ describe("TcgplayerSellerClient", () => {
       type: "Pricing",
       isStaged: "false",
     });
+  });
+
+  it("adds live inventory with a relative quantity and initial price", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.addSellerInventory({
+      additions: [
+        {
+          productId: 123,
+          productName: "Synthetic Card",
+          productConditionId: 456,
+          conditionId: 2,
+          channelId: 0,
+          categoryName: "Synthetic Game",
+          currentQuantity: 3,
+          addQuantity: 2,
+          price: 4.25,
+          storePriceCustomId: null,
+          reserveQuantity: 0,
+        },
+      ],
+    });
+
+    expect(result).toEqual({ submittedProductConditionIds: [456] });
+    const form = new URLSearchParams(String(requests[0]?.init?.body));
+    expect(form.get("productQuantityPrices[0][AddToQuantity]")).toBe("2");
+    expect(
+      form.get(
+        "productQuantityPrices[0][ConditionQuantityPrices][0][Quantity]",
+      ),
+    ).toBe("3");
+    expect(
+      form.get("productQuantityPrices[0][ConditionQuantityPrices][0][Price]"),
+    ).toBe("4.25");
+  });
+
+  it("rejects an inventory addition without a positive quantity", async () => {
+    const { fetchImplementation, requests } = fetchQueue([]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.addSellerInventory({
+        additions: [
+          {
+            productId: 123,
+            productName: "Synthetic Card",
+            productConditionId: 456,
+            conditionId: 2,
+            channelId: 0,
+            categoryName: "Synthetic Game",
+            currentQuantity: 3,
+            addQuantity: 0,
+            price: 4.25,
+            storePriceCustomId: null,
+            reserveQuantity: 0,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    expect(requests).toHaveLength(0);
   });
 
   it("rejects unsafe price updates before sending a request", async () => {

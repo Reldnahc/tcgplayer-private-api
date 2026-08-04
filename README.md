@@ -1,6 +1,6 @@
 # tcgplayer-private-api
 
-An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, seller inventory and marketplace listing reads, and price-only listing updates without exposing raw private endpoints.
+An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, catalog and seller-inventory reads, price-only listing updates, and positive live-inventory additions without exposing raw private endpoints.
 
 This project is not affiliated with, endorsed by, or supported by TCGplayer. The seller interface is undocumented and can change without notice. Review the agreements and policies that apply to your account before using it.
 
@@ -89,9 +89,12 @@ const packingSlip = await client.getPackingSlip({
 - `addOrderTracking(input, options?)`
 - `shipOrderWithoutTracking(input, options?)`
 - `markOrdersShipped(input, options?)`
+- `searchCatalogProducts(input, options?)`
+- `getCatalogProduct(input, options?)`
 - `searchMarketplaceProducts(input, options?)`
 - `listSellerInventory(input, options?)`
 - `updateSellerPrices(input, options?)`
+- `addSellerInventory(input, options?)`
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
 
@@ -146,6 +149,43 @@ await client.updateSellerPrices({
 
 The method accepts at most 100 distinct product-condition/channel pairs per call, validates prices to cents, and never retries. A returned success means Seller Portal accepted the update request; its own inventory processing can still be asynchronous. `AMBIGUOUS_RESULT` means the listing must be checked in Seller Portal before any retry.
 
+## Catalog and inventory additions
+
+Use `searchCatalogProducts` to find exact products and `getCatalogProduct` to resolve the supported condition, printing, and language combinations to TCGplayer SKU identifiers. Product names alone are not sufficient to identify a listing.
+
+`addSellerInventory` is separate from `updateSellerPrices`. Each addition requires a positive relative quantity, the freshly observed current quantity, the complete SKU identity, and an initial price. It submits the quantity and price together so a new card is never briefly exposed at a placeholder price.
+
+```ts
+const details = await client.getCatalogProduct({ productId: 123 });
+const sku = details.skus.find(
+  (candidate) =>
+    candidate.condition === "Near Mint" &&
+    candidate.printing === "Normal" &&
+    candidate.language === "English",
+);
+if (!sku) throw new Error("Requested SKU is unavailable");
+
+await client.addSellerInventory({
+  additions: [
+    {
+      productId: details.productId,
+      productName: details.productName,
+      productConditionId: sku.productConditionId,
+      conditionId: sku.conditionId,
+      channelId: 0,
+      categoryName: details.productLineName,
+      currentQuantity: 0,
+      addQuantity: 1,
+      price: 4.25,
+      storePriceCustomId: null,
+      reserveQuantity: 0,
+    },
+  ],
+});
+```
+
+The caller must re-read seller inventory immediately before submission and preserve secondary-channel reserve state. The method accepts at most 100 distinct SKU/channel pairs and never retries. Acceptance may be asynchronous; reconcile the listing after success, and always reconcile after `AMBIGUOUS_RESULT` before deciding whether to retry.
+
 ## Errors
 
 All client and remote failures use `TcgplayerApiError` with a stable `code`, safe message, `retryable` flag, and optional HTTP status/request ID. Response bodies, credentials, and customer details are never included in errors.
@@ -182,6 +222,6 @@ TCGPLAYER_AUTH_COOKIE=... TCGPLAYER_SELLER_KEY=... npm run compatibility:check
 
 To check an exact order, add `TCGPLAYER_ORDER_NUMBER`. To retrieve and validate its packing slip or pull sheet in memory, explicitly set `TCGPLAYER_CHECK_PACKING_SLIP=1` or `TCGPLAYER_CHECK_PULL_SHEET=1`. The script never writes order data or documents to disk.
 
-Tracking, shipment, and price-update methods are covered with synthetic contract tests. Exercise mutations against a real account only with a deliberately selected order or listing and operator supervision.
+Tracking, shipment, price-update, and inventory-add methods are covered with synthetic contract tests. Exercise mutations against a real account only with a deliberately selected order or listing and operator supervision.
 
 See [docs/PROVENANCE.md](docs/PROVENANCE.md) for the behavioral reference and clean implementation boundary.

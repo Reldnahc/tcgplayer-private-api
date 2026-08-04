@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.4.0 - Unreleased
+
+- Add validated marketplace catalog search and exact product SKU discovery by condition, printing, and language.
+- Add positive live-inventory additions that submit a relative quantity and initial price together without weakening the price-only mutation contract.
+- Keep inventory additions non-retrying so uncertain results require reconciliation before another submission.
+
 ## 0.3.1 - Unreleased
 
 - Submit live price updates through the bulk Pricing page route with its required pricing-type and live-inventory fields.

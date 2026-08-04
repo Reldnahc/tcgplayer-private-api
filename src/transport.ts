@@ -451,14 +451,15 @@ export class SellerApiTransport {
   }
 
   async marketplaceJson(
+    method: "GET" | "POST",
     path: string,
     body: unknown,
     signal?: AbortSignal,
   ): Promise<unknown> {
     const result = await this.request({
-      method: "POST",
+      method,
       path,
-      body,
+      ...(body === undefined ? {} : { body }),
       origin: "marketplace",
       accept: "application/json",
       retryMode: "safe",

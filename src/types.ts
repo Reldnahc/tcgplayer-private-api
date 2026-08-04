@@ -251,6 +251,75 @@ export interface UpdateSellerPricesResult {
   readonly submittedProductConditionIds: readonly number[];
 }
 
+/**
+ * A relative live-inventory addition submitted with its initial marketplace
+ * price. The caller must obtain currentQuantity immediately before enqueueing
+ * or applying the mutation so a stale request can be rejected safely.
+ */
+export interface SellerInventoryAddition {
+  readonly productId: number;
+  readonly productName: string;
+  /** Seller Portal calls this ProductConditionId; it is the listing SKU id. */
+  readonly productConditionId: number;
+  readonly conditionId: number;
+  readonly channelId: number;
+  readonly categoryName: string;
+  readonly currentQuantity: number;
+  readonly addQuantity: number;
+  readonly price: number;
+  readonly storePriceCustomId: number | null;
+  readonly reserveQuantity: number;
+}
+
+export interface AddSellerInventoryInput {
+  readonly additions: readonly SellerInventoryAddition[];
+}
+
+export interface AddSellerInventoryResult {
+  readonly submittedProductConditionIds: readonly number[];
+}
+
+export interface CatalogProductSummary {
+  readonly productId: number;
+  readonly productName: string;
+  readonly productLineName: string;
+  readonly setName: string;
+  readonly rarityName: string;
+  readonly cardNumber: string;
+  readonly marketPrice: number;
+  readonly sellerListable: boolean;
+}
+
+export interface CatalogProductSku {
+  /** Seller Portal calls this ProductConditionId; it is the listing SKU id. */
+  readonly productConditionId: number;
+  readonly conditionId: number;
+  readonly condition: string;
+  readonly printing: string;
+  readonly language: string;
+}
+
+export interface CatalogProductDetails extends CatalogProductSummary {
+  readonly skus: readonly CatalogProductSku[];
+}
+
+export interface SearchCatalogProductsInput {
+  readonly query: string;
+  readonly productLineName?: string;
+  readonly offset?: number;
+  /** TCGplayer's observed maximum page size is 24. */
+  readonly limit?: number;
+}
+
+export interface SearchCatalogProductsResult {
+  readonly totalProducts: number;
+  readonly products: readonly CatalogProductSummary[];
+}
+
+export interface GetCatalogProductInput {
+  readonly productId: number;
+}
+
 export interface MarketplaceListingCustomData {
   readonly customListingId?: number;
 }

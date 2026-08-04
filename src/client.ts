@@ -1,14 +1,22 @@
 import { invalidArgument, TcgplayerApiError } from "./errors.js";
+import {
+  parseCatalogProduct,
+  parseCatalogSearch,
+} from "./catalog-validation.js";
 import { parseMarketplaceProducts } from "./marketplace-validation.js";
 import { SellerApiTransport } from "./transport.js";
 import type {
+  AddSellerInventoryInput,
+  AddSellerInventoryResult,
   AddOrderTrackingInput,
+  CatalogProductDetails,
   ConfirmedSellerOrder,
   ConfirmSellerOrderInput,
   DetectCarrierResult,
   ExportPackingSlipsInput,
   ExportPullSheetInput,
   GetPackingSlipInput,
+  GetCatalogProductInput,
   MarkOrdersShippedInput,
   MarkOrdersShippedResult,
   ListSellerInventoryInput,
@@ -21,6 +29,9 @@ import type {
   SearchSellerOrdersResult,
   SearchMarketplaceProductsInput,
   SearchMarketplaceProductsResult,
+  SearchCatalogProductsInput,
+  SearchCatalogProductsResult,
+  SellerInventoryAddition,
   SellerOrderDetail,
   SellerOrderStatusFilter,
   ShipOrderWithoutTrackingInput,
@@ -42,6 +53,7 @@ const DETECT_CARRIER_PATH = "/orders/detect-carrier?api-version=2.0";
 const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
 const UPDATE_INVENTORY_PATH = "/admin/pricing/updateinventory";
 const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
+const MARKETPLACE_PRODUCT_PATH = "/v2/product";
 const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
   "Canceled",
   "Delivered",
@@ -202,6 +214,145 @@ function validatePullSheet(text: string): void {
       "TCGplayer returned a pull sheet with an unsupported column schema.",
     );
   }
+}
+
+interface InventoryFormUpdate {
+  readonly productId: number;
+  readonly productName: string;
+  readonly productConditionId: number;
+  readonly conditionId: number;
+  readonly channelId: number;
+  readonly categoryName: string;
+  readonly currentQuantity: number;
+  readonly addQuantity: number;
+  readonly price: number;
+  readonly storePriceCustomId: number | null;
+  readonly reserveQuantity: number;
+}
+
+function buildInventoryUpdateForm(updates: readonly InventoryFormUpdate[]): {
+  readonly form: URLSearchParams;
+  readonly productConditionIds: number[];
+} {
+  const form = new URLSearchParams();
+  const listingKeys = new Set<string>();
+  const productConditionIds: number[] = [];
+  updates.forEach((update, index) => {
+    if (typeof update !== "object" || update === null) {
+      throw invalidArgument(`updates[${index}] must be an object.`);
+    }
+    const path = `productQuantityPrices[${index}]`;
+    const productId = boundedInteger(
+      `updates[${index}].productId`,
+      update.productId,
+      0,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const productConditionId = boundedInteger(
+      `updates[${index}].productConditionId`,
+      update.productConditionId,
+      0,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const conditionId = boundedInteger(
+      `updates[${index}].conditionId`,
+      update.conditionId,
+      0,
+      1,
+      6,
+    );
+    const channelId = boundedInteger(
+      `updates[${index}].channelId`,
+      update.channelId,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const currentQuantity = boundedInteger(
+      `updates[${index}].currentQuantity`,
+      update.currentQuantity,
+      0,
+      0,
+      10_000_000,
+    );
+    const addQuantity = boundedInteger(
+      `updates[${index}].addQuantity`,
+      update.addQuantity,
+      0,
+      0,
+      10_000_000,
+    );
+    const price = finiteNumber(
+      `updates[${index}].price`,
+      update.price,
+      0.01,
+      1_000_000,
+    );
+    if (Math.abs(price * 100 - Math.round(price * 100)) > 1e-9) {
+      throw invalidArgument(
+        `updates[${index}].price must have at most two decimal places.`,
+      );
+    }
+    const reserveQuantity = finiteNumber(
+      `updates[${index}].reserveQuantity`,
+      update.reserveQuantity,
+      0,
+      10_000_000,
+    );
+    const storePriceCustomId =
+      update.storePriceCustomId === null
+        ? null
+        : boundedInteger(
+            `updates[${index}].storePriceCustomId`,
+            update.storePriceCustomId,
+            0,
+            0,
+            Number.MAX_SAFE_INTEGER,
+          );
+    const key = `${productConditionId}:${channelId}`;
+    if (listingKeys.has(key)) {
+      throw invalidArgument(
+        "updates must not contain duplicate productConditionId/channelId pairs.",
+      );
+    }
+    listingKeys.add(key);
+    productConditionIds.push(productConditionId);
+
+    appendFormValue(form, `${path}[ProductId]`, productId);
+    appendFormValue(
+      form,
+      `${path}[ProductName]`,
+      requiredText(`updates[${index}].productName`, update.productName, 1024),
+    );
+    appendFormValue(form, `${path}[AddToQuantity]`, addQuantity);
+    const conditionPath = `${path}[ConditionQuantityPrices][0]`;
+    appendFormValue(
+      form,
+      `${conditionPath}[ProductConditionId]`,
+      productConditionId,
+    );
+    appendFormValue(form, `${conditionPath}[ConditionId]`, conditionId);
+    appendFormValue(form, `${conditionPath}[ChannelId]`, channelId);
+    appendFormValue(
+      form,
+      `${conditionPath}[CategoryName]`,
+      requiredText(`updates[${index}].categoryName`, update.categoryName, 256),
+    );
+    appendFormValue(form, `${conditionPath}[Quantity]`, currentQuantity);
+    appendFormValue(form, `${conditionPath}[Price]`, price.toFixed(2));
+    appendFormValue(form, `${conditionPath}[ExistingQuantity]`, 0);
+    appendFormValue(
+      form,
+      `${conditionPath}[StorePriceCustomId]`,
+      storePriceCustomId,
+    );
+    appendFormValue(form, `${conditionPath}[ReserveQuantity]`, reserveQuantity);
+  });
+  appendFormValue(form, "type", "Pricing");
+  appendFormValue(form, "isStaged", false);
+  return { form, productConditionIds };
 }
 
 export class TcgplayerSellerClient {
@@ -629,8 +780,85 @@ export class TcgplayerSellerClient {
     };
     return parseMarketplaceProducts(
       await this.transport.marketplaceJson(
+        "POST",
         MARKETPLACE_SEARCH_PATH,
         payload,
+        requestSignal(options),
+      ),
+    );
+  }
+
+  async searchCatalogProducts(
+    input: SearchCatalogProductsInput,
+    options?: RequestOptions,
+  ): Promise<SearchCatalogProductsResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Catalog search input is required.");
+    }
+    const query = requiredText("query", input.query, 200);
+    const productLineName =
+      input.productLineName === undefined
+        ? undefined
+        : requiredText("productLineName", input.productLineName, 256);
+    const offset = boundedInteger("offset", input.offset, 0, 0, 1_000_000);
+    const limit = boundedInteger("limit", input.limit, 24, 1, 24);
+    const payload = {
+      algorithm: "sales_synonym_v2",
+      from: offset,
+      size: limit,
+      filters: {
+        match: { productName: query },
+        ...(productLineName === undefined
+          ? {}
+          : { term: { productLineName: [productLineName] } }),
+      },
+      listingSearch: {
+        context: { cart: {} },
+        filters: {
+          term: { sellerStatus: "Live", channelId: 0 },
+          range: { quantity: { gte: 1 } },
+          exclude: { channelExclusion: 0 },
+        },
+      },
+      context: {
+        cart: {},
+        shippingCountry: "US",
+        userProfile: {
+          productLineAffinity: productLineName ?? "",
+          priceAffinity: 0,
+        },
+      },
+      settings: { useFuzzySearch: true, didYouMean: {} },
+    };
+    return parseCatalogSearch(
+      await this.transport.marketplaceJson(
+        "POST",
+        MARKETPLACE_SEARCH_PATH,
+        payload,
+        requestSignal(options),
+      ),
+    );
+  }
+
+  async getCatalogProduct(
+    input: GetCatalogProductInput,
+    options?: RequestOptions,
+  ): Promise<CatalogProductDetails> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Catalog product input is required.");
+    }
+    const productId = boundedInteger(
+      "productId",
+      input.productId,
+      0,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    );
+    return parseCatalogProduct(
+      await this.transport.marketplaceJson(
+        "GET",
+        `${MARKETPLACE_PRODUCT_PATH}/${String(productId)}/details`,
+        undefined,
         requestSignal(options),
       ),
     );
@@ -697,133 +925,75 @@ export class TcgplayerSellerClient {
       throw invalidArgument("updates must contain 1-100 price updates.");
     }
 
-    const form = new URLSearchParams();
-    const listingKeys = new Set<string>();
-    const submittedProductConditionIds: number[] = [];
-    input.updates.forEach((update, index) => {
+    const formUpdates = input.updates.map((update, index) => {
       if (typeof update !== "object" || update === null) {
         throw invalidArgument(`updates[${index}] must be an object.`);
       }
-      const path = `productQuantityPrices[${index}]`;
-      const productId = boundedInteger(
-        `updates[${index}].productId`,
-        update.productId,
-        0,
-        1,
-        Number.MAX_SAFE_INTEGER,
-      );
-      const productConditionId = boundedInteger(
-        `updates[${index}].productConditionId`,
-        update.productConditionId,
-        0,
-        1,
-        Number.MAX_SAFE_INTEGER,
-      );
-      const conditionId = boundedInteger(
-        `updates[${index}].conditionId`,
-        update.conditionId,
-        0,
-        1,
-        Number.MAX_SAFE_INTEGER,
-      );
-      const channelId = boundedInteger(
-        `updates[${index}].channelId`,
-        update.channelId,
-        0,
-        0,
-        Number.MAX_SAFE_INTEGER,
-      );
-      const quantity = boundedInteger(
-        `updates[${index}].quantity`,
-        update.quantity,
-        0,
-        0,
-        10_000_000,
-      );
-      const price = finiteNumber(
-        `updates[${index}].price`,
-        update.price,
-        0.01,
-        1_000_000,
-      );
-      const priceInCents = price * 100;
-      if (Math.abs(priceInCents - Math.round(priceInCents)) > 1e-9) {
-        throw invalidArgument(
-          `updates[${index}].price must have at most two decimal places.`,
-        );
-      }
-      const reserveQuantity = finiteNumber(
-        `updates[${index}].reserveQuantity`,
-        update.reserveQuantity,
-        0,
-        10_000_000,
-      );
-      const storePriceCustomId =
-        update.storePriceCustomId === null
-          ? null
-          : boundedInteger(
-              `updates[${index}].storePriceCustomId`,
-              update.storePriceCustomId,
-              0,
-              0,
-              Number.MAX_SAFE_INTEGER,
-            );
-      const key = `${productConditionId}:${channelId}`;
-      if (listingKeys.has(key)) {
-        throw invalidArgument(
-          "updates must not contain duplicate productConditionId/channelId pairs.",
-        );
-      }
-      listingKeys.add(key);
-      submittedProductConditionIds.push(productConditionId);
-
-      appendFormValue(form, `${path}[ProductId]`, productId);
-      appendFormValue(
-        form,
-        `${path}[ProductName]`,
-        requiredText(`updates[${index}].productName`, update.productName, 1024),
-      );
-      appendFormValue(form, `${path}[AddToQuantity]`, 0);
-      const conditionPath = `${path}[ConditionQuantityPrices][0]`;
-      appendFormValue(
-        form,
-        `${conditionPath}[ProductConditionId]`,
-        productConditionId,
-      );
-      appendFormValue(form, `${conditionPath}[ConditionId]`, conditionId);
-      appendFormValue(form, `${conditionPath}[ChannelId]`, channelId);
-      appendFormValue(
-        form,
-        `${conditionPath}[CategoryName]`,
-        requiredText(
-          `updates[${index}].categoryName`,
-          update.categoryName,
-          256,
-        ),
-      );
-      appendFormValue(form, `${conditionPath}[Quantity]`, quantity);
-      appendFormValue(form, `${conditionPath}[Price]`, price.toFixed(2));
-      appendFormValue(form, `${conditionPath}[ExistingQuantity]`, 0);
-      appendFormValue(
-        form,
-        `${conditionPath}[StorePriceCustomId]`,
-        storePriceCustomId,
-      );
-      appendFormValue(
-        form,
-        `${conditionPath}[ReserveQuantity]`,
-        reserveQuantity,
-      );
+      return {
+        ...update,
+        currentQuantity: update.quantity,
+        addQuantity: 0,
+      };
     });
-    appendFormValue(form, "type", "Pricing");
-    appendFormValue(form, "isStaged", false);
+    const { form, productConditionIds } = buildInventoryUpdateForm(formUpdates);
 
     await this.transport.sellerPortalFormCommand(
       UPDATE_INVENTORY_PATH,
       form,
       requestSignal(options),
     );
-    return { submittedProductConditionIds };
+    return { submittedProductConditionIds: productConditionIds };
+  }
+
+  async addSellerInventory(
+    input: AddSellerInventoryInput,
+    options?: RequestOptions,
+  ): Promise<AddSellerInventoryResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Inventory-add input is required.");
+    }
+    if (
+      !Array.isArray(input.additions) ||
+      input.additions.length === 0 ||
+      input.additions.length > 100
+    ) {
+      throw invalidArgument(
+        "additions must contain 1-100 inventory additions.",
+      );
+    }
+    input.additions.forEach((addition: SellerInventoryAddition, index) => {
+      if (typeof addition !== "object" || addition === null) {
+        throw invalidArgument(`additions[${index}] must be an object.`);
+      }
+      const addQuantity = boundedInteger(
+        `additions[${index}].addQuantity`,
+        addition.addQuantity,
+        0,
+        1,
+        10_000_000,
+      );
+      const currentQuantity = boundedInteger(
+        `additions[${index}].currentQuantity`,
+        addition.currentQuantity,
+        0,
+        0,
+        10_000_000,
+      );
+      if (currentQuantity + addQuantity > 10_000_000) {
+        throw invalidArgument(
+          `additions[${index}] would exceed the supported quantity limit.`,
+        );
+      }
+    });
+    const { form, productConditionIds } = buildInventoryUpdateForm(
+      input.additions,
+    );
+    await this.transport.sellerPortalFormCommand(
+      UPDATE_INVENTORY_PATH,
+      form,
+      requestSignal(options),
+    );
+    return { submittedProductConditionIds: productConditionIds };
   }
 }
 
