@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented here.
 
+## 0.3.1 - Unreleased
+
+- Submit live price updates through the bulk Pricing page route with its required pricing-type and live-inventory fields.
+- Correct the earlier product-detail route mismatch that caused definite HTTP rejections for repricing jobs.
+
 ## 0.3.0 - Unreleased
 
 - Add validated, paginated seller-inventory reads through `listSellerInventory`.

@@ -185,7 +185,7 @@ describe("TcgplayerSellerClient", () => {
     expect(result).toEqual({ submittedProductConditionIds: [456] });
     expect(requests).toHaveLength(1);
     expect(requests[0]?.url).toBe(
-      "https://store.tcgplayer.com/admin/product/updateinventory",
+      "https://store.tcgplayer.com/admin/pricing/updateinventory",
     );
     expect(requests[0]?.init?.method).toBe("POST");
     const headers = new Headers(requests[0]?.init?.headers);
@@ -213,6 +213,8 @@ describe("TcgplayerSellerClient", () => {
         "",
       "productQuantityPrices[0][ConditionQuantityPrices][0][ReserveQuantity]":
         "2",
+      type: "Pricing",
+      isStaged: "false",
     });
   });
 

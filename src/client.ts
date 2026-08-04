@@ -40,7 +40,7 @@ const PACKING_SLIPS_PATH = "/orders/packing-slips/export?api-version=2.0";
 const PULL_SHEET_PATH = "/orders/pull-sheets/export?api-version=2.0";
 const DETECT_CARRIER_PATH = "/orders/detect-carrier?api-version=2.0";
 const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
-const UPDATE_INVENTORY_PATH = "/admin/product/updateinventory";
+const UPDATE_INVENTORY_PATH = "/admin/pricing/updateinventory";
 const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
 const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
   "Canceled",
@@ -815,6 +815,8 @@ export class TcgplayerSellerClient {
         reserveQuantity,
       );
     });
+    appendFormValue(form, "type", "Pricing");
+    appendFormValue(form, "isStaged", false);
 
     await this.transport.sellerPortalFormCommand(
       UPDATE_INVENTORY_PATH,

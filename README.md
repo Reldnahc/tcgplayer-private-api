@@ -123,7 +123,7 @@ Mutations are never automatically retried. A timeout, lost connection, server er
 
 Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve current comparison listings by product, condition, printing, and language. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, and whether to raise or lower a price.
 
-`updateSellerPrices` reproduces Seller Portal's price-only inventory update. Each update deliberately requires the listing's current quantity, reserve quantity, channel, and identifiers; the method always sends an add-to-quantity value of zero. This prevents a price update from silently inventing or clearing inventory state.
+`updateSellerPrices` reproduces Seller Portal's live bulk-Pricing price update. Each update deliberately requires the listing's current quantity, reserve quantity, channel, and identifiers; the method always sends an add-to-quantity value of zero and explicitly targets live rather than staged inventory. This prevents a price update from silently inventing or clearing inventory state.
 
 ```ts
 await client.updateSellerPrices({
