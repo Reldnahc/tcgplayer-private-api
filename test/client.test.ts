@@ -8,6 +8,7 @@ import {
   syntheticOrder,
   syntheticOrderNumber,
   syntheticPdf,
+  syntheticPullSheet,
   syntheticSellerKey,
   syntheticSummary,
 } from "./fixtures.js";
@@ -402,5 +403,287 @@ describe("TcgplayerSellerClient", () => {
     const error = new TcgplayerApiError("NOT_FOUND", "Synthetic failure");
     expect(error).toBeInstanceOf(Error);
     expect(error.code).toBe("NOT_FOUND");
+  });
+
+  it("detects a carrier with the observed request contract", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ carrier: "USPS" }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.detectCarrier("9400000000000000000000"),
+    ).resolves.toEqual({ carrier: "USPS" });
+    expect(requests[0]?.url).toBe(
+      "https://order-management-api.tcgplayer.com/orders/detect-carrier?api-version=2.0",
+    );
+    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
+      trackingNumber: "9400000000000000000000",
+    });
+  });
+
+  it("rejects an empty detected carrier", async () => {
+    const { fetchImplementation } = fetchQueue([jsonResponse({ carrier: "" })]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(client.detectCarrier("SYNTHETIC123")).rejects.toMatchObject({
+      code: "INVALID_RESPONSE",
+    });
+  });
+
+  it("exports and validates a pull-sheet CSV served as an octet stream", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      new Response(syntheticPullSheet, {
+        headers: { "content-type": "application/octet-stream" },
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.exportPullSheet({
+      orderNumbers: [syntheticOrderNumber],
+      timezoneOffsetMinutes: 360,
+    });
+
+    expect(result).toEqual({
+      text: syntheticPullSheet,
+      contentType: "text/csv",
+      fileName: "pull-sheet.csv",
+      orderNumbers: [syntheticOrderNumber],
+    });
+    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
+      orderNumbers: [syntheticOrderNumber],
+      timezoneOffset: 360,
+    });
+  });
+
+  it("rejects a pull sheet whose columns have drifted", async () => {
+    const { fetchImplementation } = fetchQueue([
+      new Response("Unknown,Columns\r\nvalue,value\r\n", {
+        headers: { "content-type": "text/csv" },
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.exportPullSheet({
+        orderNumbers: [syntheticOrderNumber],
+        timezoneOffsetMinutes: 0,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("adds tracking only after seller-scoped preflight confirmation", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse(syntheticOrder),
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.addOrderTracking({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+        carrier: "USPS",
+        trackingNumber: "9400000000000000000000",
+      }),
+    ).resolves.toEqual({
+      orderNumber: syntheticOrderNumber,
+      outcome: "applied",
+    });
+    expect(requests).toHaveLength(3);
+    expect(requests[2]?.url).toBe(
+      `https://order-management-api.tcgplayer.com/orders/${syntheticOrderNumber}/tracking?api-version=2.0`,
+    );
+    expect(JSON.parse(String(requests[2]?.init?.body))).toEqual({
+      carrier: "USPS",
+      trackingNumber: "9400000000000000000000",
+    });
+  });
+
+  it("does not submit duplicate tracking", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse(syntheticOrder),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.addOrderTracking({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+        carrier: "Synthetic Carrier",
+        trackingNumber: "SYNTHETIC000000000",
+      }),
+    ).resolves.toEqual({
+      orderNumber: syntheticOrderNumber,
+      outcome: "already-applied",
+    });
+    expect(requests).toHaveLength(2);
+  });
+
+  it("ships an order without tracking after preflight confirmation", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse({ ...syntheticOrder, trackingNumbers: [] }),
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.shipOrderWithoutTracking({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+      }),
+    ).resolves.toMatchObject({ outcome: "applied" });
+    expect(requests[2]?.url).toBe(
+      `https://order-management-api.tcgplayer.com/orders/${syntheticOrderNumber}/ship-no-tracking?api-version=2.0`,
+    );
+    expect(requests[2]?.init?.body).toBeUndefined();
+  });
+
+  it("does not resubmit an already shipped order", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse({ ...syntheticOrder, status: "Shipped" }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.shipOrderWithoutTracking({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+      }),
+    ).resolves.toMatchObject({ outcome: "already-applied" });
+    expect(requests).toHaveLength(2);
+  });
+
+  it("does not send a bulk mutation when every order is already shipped", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse({ ...syntheticOrder, status: "Delivered" }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.markOrdersShipped({
+        sellerKey: syntheticSellerKey,
+        orderNumbers: [syntheticOrderNumber],
+      }),
+    ).resolves.toEqual({
+      updatedOrderNumbers: [],
+      alreadyShippedOrderNumbers: [syntheticOrderNumber],
+      errors: [],
+    });
+    expect(requests).toHaveLength(2);
+  });
+
+  it("marks confirmed orders shipped and validates partial results", async () => {
+    const secondOrderNumber = "00000000000000001";
+    const secondSummary = {
+      ...syntheticSummary,
+      orderNumber: secondOrderNumber,
+    };
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse(syntheticOrder),
+      jsonResponse({ totalOrders: 1, orders: [secondSummary] }),
+      jsonResponse({ ...syntheticOrder, orderNumber: secondOrderNumber }),
+      jsonResponse({
+        updatedCount: 1,
+        errorCount: 1,
+        errors: [
+          { orderNumber: secondOrderNumber, errorMessage: "Synthetic error" },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.markOrdersShipped({
+        sellerKey: syntheticSellerKey,
+        orderNumbers: [syntheticOrderNumber, secondOrderNumber],
+      }),
+    ).resolves.toEqual({
+      updatedOrderNumbers: [syntheticOrderNumber],
+      alreadyShippedOrderNumbers: [],
+      errors: [{ orderNumber: secondOrderNumber, message: "Synthetic error" }],
+    });
+    expect(requests[4]?.url).toBe(
+      "https://order-management-api.tcgplayer.com/orders/status-updates?api-version=2.0",
+    );
+    expect(JSON.parse(String(requests[4]?.init?.body))).toEqual({
+      orderNumbers: [syntheticOrderNumber, secondOrderNumber],
+      status: "Shipped",
+    });
+  });
+
+  it("never automatically retries an ambiguous tracking mutation", async () => {
+    let requests = 0;
+    const fetchImplementation: typeof globalThis.fetch = async () => {
+      requests += 1;
+      if (requests === 1) {
+        return jsonResponse({ totalOrders: 1, orders: [syntheticSummary] });
+      }
+      if (requests === 2) return jsonResponse(syntheticOrder);
+      throw new Error("synthetic connection reset after submission");
+    };
+    const client = clientWith(fetchImplementation, {
+      retry: { maxRetries: 3, baseDelayMs: 0, maxDelayMs: 0 },
+    });
+
+    await expect(
+      client.addOrderTracking({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+        carrier: "USPS",
+        trackingNumber: "9400000000000000000000",
+      }),
+    ).rejects.toMatchObject({
+      code: "AMBIGUOUS_RESULT",
+      retryable: false,
+    });
+    expect(requests).toBe(3);
+  });
+
+  it("does not retry a mutation that receives a server error", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse(syntheticOrder),
+      jsonResponse({}, 503),
+    ]);
+    const client = clientWith(fetchImplementation, {
+      retry: { maxRetries: 3, baseDelayMs: 0, maxDelayMs: 0 },
+    });
+
+    await expect(
+      client.addOrderTracking({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+        carrier: "USPS",
+        trackingNumber: "9400000000000000000000",
+      }),
+    ).rejects.toMatchObject({
+      code: "AMBIGUOUS_RESULT",
+      retryable: false,
+      status: 503,
+    });
+    expect(requests).toHaveLength(3);
+  });
+
+  it("classifies inconsistent bulk mutation results as ambiguous", async () => {
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse(syntheticOrder),
+      jsonResponse({ updatedCount: 0, errorCount: 0, errors: [] }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.markOrdersShipped({
+        sellerKey: syntheticSellerKey,
+        orderNumbers: [syntheticOrderNumber],
+      }),
+    ).rejects.toMatchObject({ code: "AMBIGUOUS_RESULT" });
   });
 });

@@ -24,6 +24,7 @@ export interface TcgplayerSellerClientOptions {
   readonly requestDelayMs?: number;
   readonly maxJsonResponseBytes?: number;
   readonly maxPdfResponseBytes?: number;
+  readonly maxTextResponseBytes?: number;
   readonly retry?: RetryOptions;
 }
 
@@ -32,7 +33,18 @@ export interface RequestOptions {
 }
 
 export type SellerOrderSearchRange = "LastThreeMonths";
-export type SellerOrderStatusFilter = "ReadyToShip";
+export type SellerOrderStatusFilter =
+  | "Canceled"
+  | "Delivered"
+  | "PickedUp"
+  | "PickupOrderCanceled"
+  | "Processing"
+  | "Pulling"
+  | "ReadyForPickup"
+  | "ReadyToShip"
+  | "Received"
+  | "Shipped"
+  | "ShippedOrderCanceled";
 export type SellerOrderSortField = "orderStatus" | "orderDate";
 export type SortDirection = "ascending" | "descending";
 
@@ -158,4 +170,56 @@ export interface PackingSlipDocument {
   readonly contentType: "application/pdf";
   readonly fileName: string;
   readonly orderNumbers: readonly string[];
+}
+
+export interface DetectCarrierResult {
+  readonly carrier: string;
+}
+
+export interface ExportPullSheetInput {
+  readonly orderNumbers: readonly string[];
+  /** Matches JavaScript's `Date#getTimezoneOffset` convention. */
+  readonly timezoneOffsetMinutes: number;
+}
+
+export interface PullSheetDocument {
+  readonly text: string;
+  readonly contentType: "text/csv";
+  readonly fileName: "pull-sheet.csv";
+  readonly orderNumbers: readonly string[];
+}
+
+export interface AddOrderTrackingInput {
+  readonly sellerKey: string;
+  readonly orderNumber: string;
+  readonly carrier: string;
+  readonly trackingNumber: string;
+}
+
+export interface ShipOrderWithoutTrackingInput {
+  readonly sellerKey: string;
+  readonly orderNumber: string;
+}
+
+export type FulfillmentMutationOutcome = "applied" | "already-applied";
+
+export interface OrderFulfillmentMutationResult {
+  readonly orderNumber: string;
+  readonly outcome: FulfillmentMutationOutcome;
+}
+
+export interface MarkOrdersShippedInput {
+  readonly sellerKey: string;
+  readonly orderNumbers: readonly string[];
+}
+
+export interface MarkOrdersShippedError {
+  readonly orderNumber: string;
+  readonly message?: string;
+}
+
+export interface MarkOrdersShippedResult {
+  readonly updatedOrderNumbers: readonly string[];
+  readonly alreadyShippedOrderNumbers: readonly string[];
+  readonly errors: readonly MarkOrdersShippedError[];
 }

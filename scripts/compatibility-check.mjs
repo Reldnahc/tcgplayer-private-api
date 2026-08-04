@@ -16,15 +16,16 @@ const authCookie = process.env.TCGPLAYER_AUTH_COOKIE;
 const sellerKey = process.env.TCGPLAYER_SELLER_KEY;
 const orderNumber = process.env.TCGPLAYER_ORDER_NUMBER;
 const checkPackingSlip = process.env.TCGPLAYER_CHECK_PACKING_SLIP === "1";
+const checkPullSheet = process.env.TCGPLAYER_CHECK_PULL_SHEET === "1";
 
 if (!authCookie || !sellerKey) {
   writeError(
     "Set TCGPLAYER_AUTH_COOKIE and TCGPLAYER_SELLER_KEY to run the opt-in compatibility check.",
   );
   process.exitCode = 2;
-} else if (checkPackingSlip && !orderNumber) {
+} else if ((checkPackingSlip || checkPullSheet) && !orderNumber) {
   writeError(
-    "TCGPLAYER_ORDER_NUMBER is required when TCGPLAYER_CHECK_PACKING_SLIP=1.",
+    "TCGPLAYER_ORDER_NUMBER is required when a document compatibility check is enabled.",
   );
   process.exitCode = 2;
 } else {
@@ -53,6 +54,16 @@ if (!authCookie || !sellerKey) {
         });
         writeOutput(
           `Packing-slip export compatible; received ${packingSlip.bytes.byteLength} PDF byte(s).`,
+        );
+      }
+
+      if (checkPullSheet) {
+        const pullSheet = await client.exportPullSheet({
+          orderNumbers: [orderNumber],
+          timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+        });
+        writeOutput(
+          `Pull-sheet export compatible; received ${pullSheet.text.length} UTF-8 character(s).`,
         );
       }
     }

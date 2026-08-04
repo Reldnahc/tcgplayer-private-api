@@ -15,7 +15,7 @@ The seller client must be installable by TCGPlayerAlert and unrelated server app
 - Use the platform `fetch` implementation and no runtime dependencies.
 - Pin transitive build tooling when necessary to resolve audited development-only vulnerabilities, and remove overrides once direct tools declare a patched compatible range.
 - Accept a caller-provided session value or session provider; do not own credential persistence.
-- Keep the first public surface read-only: order search, order detail, exact-order confirmation, and packing-slip export.
+- Keep the first public surface read-only: order search, order detail, exact-order confirmation, and packing-slip export. ADR 0002 subsequently expands this boundary with explicitly authorized fulfillment mutations.
 - Keep the TCGplayer origin fixed in production code. Tests replace `fetch` rather than redirecting credentials to another host.
 - Treat the package contract, types, declared exports, and error semantics as versioned API.
 

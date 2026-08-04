@@ -1,6 +1,6 @@
 # tcgplayer-private-api
 
-An unofficial, read-only npm client for authorized access to TCGplayer seller orders and packing slips.
+An unofficial server-side npm client for authorized TCGplayer seller order fulfillment. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, and shipment status updates without exposing raw private endpoints.
 
 This project is not affiliated with, endorsed by, or supported by TCGplayer. The seller interface is undocumented and can change without notice. Review the agreements and policies that apply to your account before using it.
 
@@ -21,7 +21,7 @@ Do not include this package or seller session material in browser bundles.
 From an adjacent application repository:
 
 ```shell
-npm install ../package
+npm install ../tcgplayer-private-api
 ```
 
 The application still imports by package name:
@@ -84,8 +84,37 @@ const packingSlip = await client.getPackingSlip({
 - `confirmOrder(input, options?)`
 - `getPackingSlip(input, options?)`
 - `exportPackingSlips(input, options?)`
+- `exportPullSheet(input, options?)`
+- `detectCarrier(trackingNumber, options?)`
+- `addOrderTracking(input, options?)`
+- `shipOrderWithoutTracking(input, options?)`
+- `markOrdersShipped(input, options?)`
 
-Every method accepts an optional `AbortSignal`. JSON and PDF responses are size-limited and validated before they are returned. The client retries bounded, read-only requests only for rate limits and selected transient server failures.
+Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
+
+## Fulfillment mutations
+
+Mutation methods require both a seller key and order number. The client confirms each order belongs to that seller and reads its current state before submission. Existing matching tracking and already-shipped states return `outcome: "already-applied"` without another mutation.
+
+```ts
+const { carrier } = await client.detectCarrier("your-tracking-number");
+
+await client.addOrderTracking({
+  sellerKey: "your-seller-key",
+  orderNumber: "your-order-number",
+  carrier,
+  trackingNumber: "your-tracking-number",
+});
+
+await client.markOrdersShipped({
+  sellerKey: "your-seller-key",
+  orderNumbers: ["your-order-number"],
+});
+```
+
+For an order intentionally shipped without tracking, use `shipOrderWithoutTracking`. Tracking submission and marking shipped are distinct operations, matching the Seller Portal workflow.
+
+Mutations are never automatically retried. A timeout, lost connection, server error, or invalid success response returns `AMBIGUOUS_RESULT`; re-read the affected order and reconcile tracking/status before choosing whether to retry. Do not treat this error as permission to immediately resubmit.
 
 ## Errors
 
@@ -115,12 +144,14 @@ npm run audit
 
 ### Opt-in live compatibility check
 
-Live checks are excluded from ordinary tests and CI. They are read-only and print only endpoint status/count metadata, never order contents, addresses, documents, or credentials.
+Live checks are excluded from ordinary tests and CI. The provided compatibility script is strictly read-only and prints only endpoint status/count metadata, never order contents, addresses, documents, or credentials. It does not offer an environment flag for live mutations.
 
 ```shell
 TCGPLAYER_AUTH_COOKIE=... TCGPLAYER_SELLER_KEY=... npm run compatibility:check
 ```
 
-To check an exact order, add `TCGPLAYER_ORDER_NUMBER`. To also retrieve and validate its packing slip in memory, explicitly set `TCGPLAYER_CHECK_PACKING_SLIP=1`. The script never writes the order or PDF to disk.
+To check an exact order, add `TCGPLAYER_ORDER_NUMBER`. To retrieve and validate its packing slip or pull sheet in memory, explicitly set `TCGPLAYER_CHECK_PACKING_SLIP=1` or `TCGPLAYER_CHECK_PULL_SHEET=1`. The script never writes order data or documents to disk.
+
+Tracking and shipment methods are covered with synthetic contract tests. Exercise them against a real account only with a newly received order selected for that purpose and deliberate operator supervision.
 
 See [docs/PROVENANCE.md](docs/PROVENANCE.md) for the behavioral reference and clean implementation boundary.

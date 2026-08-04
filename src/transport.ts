@@ -28,6 +28,7 @@ interface TransportOptions {
   readonly requestDelayMs?: number;
   readonly maxJsonResponseBytes?: number;
   readonly maxPdfResponseBytes?: number;
+  readonly maxTextResponseBytes?: number;
   readonly retry?: RetryOptions;
 }
 
@@ -41,7 +42,9 @@ interface RequestSpec {
   readonly method: "GET" | "POST";
   readonly path: string;
   readonly body?: unknown;
-  readonly accept: "application/json" | "application/pdf";
+  readonly accept: "application/json" | "application/pdf" | "text/csv";
+  readonly retryMode: "safe" | "never";
+  readonly discardResponseBody?: boolean;
   readonly signal?: AbortSignal;
 }
 
@@ -195,7 +198,10 @@ async function cancelBody(response: Response): Promise<void> {
   }
 }
 
-function errorForStatus(response: Response): TcgplayerApiError {
+function errorForStatus(
+  response: Response,
+  retryMode: RequestSpec["retryMode"],
+): TcgplayerApiError {
   if (response.status === 401) {
     return new TcgplayerApiError(
       "AUTHENTICATION_REQUIRED",
@@ -221,7 +227,14 @@ function errorForStatus(response: Response): TcgplayerApiError {
     return new TcgplayerApiError(
       "RATE_LIMITED",
       "TCGplayer rate-limited the request.",
-      errorOptions(response, true),
+      errorOptions(response, retryMode === "safe"),
+    );
+  }
+  if (retryMode === "never" && response.status >= 500) {
+    return new TcgplayerApiError(
+      "AMBIGUOUS_RESULT",
+      "TCGplayer returned a server error for a fulfillment mutation. Reconcile the order before deciding whether to retry.",
+      errorOptions(response),
     );
   }
   return new TcgplayerApiError(
@@ -341,6 +354,7 @@ export class SellerApiTransport {
   private readonly timeoutMs: number;
   private readonly maxJsonResponseBytes: number;
   private readonly maxPdfResponseBytes: number;
+  private readonly maxTextResponseBytes: number;
   private readonly retry: NormalizedRetryOptions;
   private readonly gate: RequestStartGate;
 
@@ -377,6 +391,13 @@ export class SellerApiTransport {
       1024,
       100 * 1024 * 1024,
     );
+    this.maxTextResponseBytes = boundedInteger(
+      "maxTextResponseBytes",
+      options.maxTextResponseBytes,
+      10 * 1024 * 1024,
+      1024,
+      50 * 1024 * 1024,
+    );
     this.retry = normalizeRetryOptions(options.retry);
     this.gate = new RequestStartGate(requestDelayMs);
   }
@@ -392,6 +413,7 @@ export class SellerApiTransport {
       path,
       ...(body === undefined ? {} : { body }),
       accept: "application/json",
+      retryMode: "safe",
       ...(signal === undefined ? {} : { signal }),
     });
 
@@ -434,6 +456,7 @@ export class SellerApiTransport {
       path,
       body,
       accept: "application/pdf",
+      retryMode: "safe",
       ...(signal === undefined ? {} : { signal }),
     });
     const { response, bytes } = result;
@@ -466,6 +489,133 @@ export class SellerApiTransport {
     return { bytes, contentType: type };
   }
 
+  async text(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    const result = await this.request({
+      method: "POST",
+      path,
+      body,
+      accept: "text/csv",
+      retryMode: "safe",
+      ...(signal === undefined ? {} : { signal }),
+    });
+    const { response, bytes } = result;
+    if (result.contentType === "text/html") {
+      throw new TcgplayerApiError(
+        "AUTHENTICATION_REQUIRED",
+        "TCGplayer returned an HTML page instead of seller export data. Refresh the authorized session.",
+        errorOptions(response),
+      );
+    }
+    if (
+      result.contentType !== "text/csv" &&
+      result.contentType !== "text/plain" &&
+      result.contentType !== "application/octet-stream"
+    ) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned an unexpected content type for seller export data.",
+        errorOptions(response),
+      );
+    }
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned seller export data that is not valid UTF-8.",
+        { ...errorOptions(response), cause: error },
+      );
+    }
+  }
+
+  async command(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const result = await this.request({
+      method: "POST",
+      path,
+      ...(body === undefined ? {} : { body }),
+      accept: "application/json",
+      retryMode: "never",
+      discardResponseBody: true,
+      ...(signal === undefined ? {} : { signal }),
+    });
+    if (result.contentType === "text/html") {
+      throw new TcgplayerApiError(
+        "AUTHENTICATION_REQUIRED",
+        "TCGplayer returned an HTML page for a fulfillment mutation. Refresh the authorized session and reconcile the order.",
+        errorOptions(result.response),
+      );
+    }
+  }
+
+  async mutationJson(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    let result: RawResponse;
+    try {
+      result = await this.request({
+        method: "POST",
+        path,
+        ...(body === undefined ? {} : { body }),
+        accept: "application/json",
+        retryMode: "never",
+        ...(signal === undefined ? {} : { signal }),
+      });
+    } catch (error) {
+      if (isTcgplayerApiError(error) && error.code === "RESPONSE_TOO_LARGE") {
+        throw new TcgplayerApiError(
+          "AMBIGUOUS_RESULT",
+          "TCGplayer accepted a fulfillment mutation but returned an oversized result. Reconcile the affected orders.",
+          {
+            ...(error.status === undefined ? {} : { status: error.status }),
+            ...(error.requestId === undefined
+              ? {}
+              : { requestId: error.requestId }),
+            cause: error,
+          },
+        );
+      }
+      throw error;
+    }
+    const { response, bytes } = result;
+    if (result.contentType === "text/html") {
+      throw new TcgplayerApiError(
+        "AUTHENTICATION_REQUIRED",
+        "TCGplayer returned an HTML page for a fulfillment mutation. Refresh the authorized session and reconcile the order.",
+        errorOptions(response),
+      );
+    }
+    if (
+      result.contentType !== "application/json" &&
+      !result.contentType.endsWith("+json")
+    ) {
+      throw new TcgplayerApiError(
+        "AMBIGUOUS_RESULT",
+        "TCGplayer accepted a fulfillment mutation but returned an unexpected response. Reconcile the affected orders.",
+        errorOptions(response),
+      );
+    }
+    try {
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      return JSON.parse(text) as unknown;
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "AMBIGUOUS_RESULT",
+        "TCGplayer accepted a fulfillment mutation but returned malformed JSON. Reconcile the affected orders.",
+        { ...errorOptions(response), cause: error },
+      );
+    }
+  }
+
   private async loadSession(): Promise<TcgplayerSession> {
     try {
       const value =
@@ -484,7 +634,9 @@ export class SellerApiTransport {
   }
 
   private async request(spec: RequestSpec): Promise<RawResponse> {
-    for (let attempt = 0; attempt <= this.retry.maxRetries; attempt += 1) {
+    const maximumRetries =
+      spec.retryMode === "safe" ? this.retry.maxRetries : 0;
+    for (let attempt = 0; attempt <= maximumRetries; attempt += 1) {
       await this.gate.wait(spec.signal);
       const session = await this.loadSession();
       const controller = new AbortController();
@@ -532,7 +684,7 @@ export class SellerApiTransport {
         if (!response.ok) {
           if (
             RETRYABLE_STATUSES.has(response.status) &&
-            attempt < this.retry.maxRetries
+            attempt < maximumRetries
           ) {
             const delay = retryDelayMs(response, attempt, this.retry);
             await cancelBody(response);
@@ -542,13 +694,24 @@ export class SellerApiTransport {
           }
 
           await cancelBody(response);
-          throw errorForStatus(response);
+          throw errorForStatus(response, spec.retryMode);
+        }
+
+        if (spec.discardResponseBody === true) {
+          await cancelBody(response);
+          return {
+            response,
+            bytes: new Uint8Array(),
+            contentType: contentType(response),
+          };
         }
 
         const maximumBytes =
           spec.accept === "application/pdf"
             ? this.maxPdfResponseBytes
-            : this.maxJsonResponseBytes;
+            : spec.accept === "text/csv"
+              ? this.maxTextResponseBytes
+              : this.maxJsonResponseBytes;
         const bytes = await readBytes(response, maximumBytes);
         return {
           response,
@@ -558,32 +721,50 @@ export class SellerApiTransport {
       } catch (error) {
         if (isTcgplayerApiError(error)) throw error;
         if (spec.signal?.aborted) {
-          throw new TcgplayerApiError("ABORTED", "The request was aborted.", {
-            cause: error,
-          });
+          throw spec.retryMode === "never"
+            ? new TcgplayerApiError(
+                "AMBIGUOUS_RESULT",
+                "A fulfillment mutation was aborted after submission began or may have begun. Reconcile the affected order before deciding whether to retry.",
+                { cause: error },
+              )
+            : new TcgplayerApiError("ABORTED", "The request was aborted.", {
+                cause: error,
+              });
         }
         if (timedOut) {
-          if (attempt < this.retry.maxRetries) {
+          if (attempt < maximumRetries) {
             clearTimeout(timer);
             await sleep(backoffDelayMs(attempt, this.retry), spec.signal);
             continue;
           }
-          throw new TcgplayerApiError(
-            "TIMEOUT",
-            `TCGplayer did not respond within ${this.timeoutMs}ms.`,
-            { retryable: true, cause: error },
-          );
+          throw spec.retryMode === "never"
+            ? new TcgplayerApiError(
+                "AMBIGUOUS_RESULT",
+                "A fulfillment mutation timed out. Reconcile the affected order before deciding whether to retry.",
+                { cause: error },
+              )
+            : new TcgplayerApiError(
+                "TIMEOUT",
+                `TCGplayer did not respond within ${this.timeoutMs}ms.`,
+                { retryable: true, cause: error },
+              );
         }
-        if (attempt < this.retry.maxRetries) {
+        if (attempt < maximumRetries) {
           clearTimeout(timer);
           await sleep(backoffDelayMs(attempt, this.retry), spec.signal);
           continue;
         }
-        throw new TcgplayerApiError(
-          "NETWORK_ERROR",
-          "The request to TCGplayer failed before a response was received.",
-          { retryable: true, cause: error },
-        );
+        throw spec.retryMode === "never"
+          ? new TcgplayerApiError(
+              "AMBIGUOUS_RESULT",
+              "A fulfillment mutation lost its network response. Reconcile the affected order before deciding whether to retry.",
+              { cause: error },
+            )
+          : new TcgplayerApiError(
+              "NETWORK_ERROR",
+              "The request to TCGplayer failed before a response was received.",
+              { retryable: true, cause: error },
+            );
       } finally {
         clearTimeout(timer);
         spec.signal?.removeEventListener("abort", onCallerAbort);

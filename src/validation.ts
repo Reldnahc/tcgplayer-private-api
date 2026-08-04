@@ -1,5 +1,7 @@
 import { invalidResponse } from "./errors.js";
 import type {
+  DetectCarrierResult,
+  MarkOrdersShippedError,
   SearchSellerOrdersResult,
   SellerOrderDetail,
   SellerOrderProduct,
@@ -9,6 +11,12 @@ import type {
   SellerOrderTrackingNumber,
   SellerOrderTransaction,
 } from "./types.js";
+
+export interface ParsedMarkOrdersShippedResponse {
+  readonly updatedCount: number;
+  readonly errorCount: number;
+  readonly errors: readonly MarkOrdersShippedError[];
+}
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -241,4 +249,47 @@ export function parseSellerOrderDetail(value: unknown): SellerOrderDetail {
     ),
     allowedActions: stringArrayValue(source, "allowedActions", path),
   };
+}
+
+export function parseDetectCarrierResult(value: unknown): DetectCarrierResult {
+  const source = record(value, "response");
+  const carrier = stringValue(source, "carrier", "response").trim();
+  if (!carrier) {
+    throw invalidResponse("Expected response.carrier to be non-empty.");
+  }
+  return { carrier };
+}
+
+export function parseMarkOrdersShippedResponse(
+  value: unknown,
+): ParsedMarkOrdersShippedResponse {
+  const source = record(value, "response");
+  const updatedCount = integerValue(source, "updatedCount", "response");
+  const errorCount = integerValue(source, "errorCount", "response");
+  if (updatedCount < 0 || errorCount < 0) {
+    throw invalidResponse(
+      "Expected response shipment counts to be non-negative.",
+    );
+  }
+
+  const errors = arrayValue(source, "errors", "response").map(
+    (value, index): MarkOrdersShippedError => {
+      const path = `response.errors[${index}]`;
+      const error = record(value, path);
+      const orderNumber = stringValue(error, "orderNumber", path);
+      const message =
+        optionalStringValue(error, "errorMessage", path) ??
+        optionalStringValue(error, "message", path);
+      return {
+        orderNumber,
+        ...(message === undefined ? {} : { message }),
+      };
+    },
+  );
+  if (errorCount !== errors.length) {
+    throw invalidResponse(
+      "Expected response.errorCount to match response.errors.",
+    );
+  }
+  return { updatedCount, errorCount, errors };
 }

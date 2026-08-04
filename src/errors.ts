@@ -8,6 +8,7 @@ export type TcgplayerApiErrorCode =
   | "NETWORK_ERROR"
   | "TIMEOUT"
   | "ABORTED"
+  | "AMBIGUOUS_RESULT"
   | "INVALID_RESPONSE"
   | "RESPONSE_TOO_LARGE";
 

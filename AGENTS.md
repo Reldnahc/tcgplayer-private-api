@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository contains an unofficial, narrowly scoped npm client for the private TCGplayer seller interface. It exists to isolate seller authentication/session behavior and the minimum endpoints required to confirm orders and retrieve packing slips for authorized sellers, while remaining reusable by applications unrelated to TCGPlayerAlert.
+This repository contains an unofficial, narrowly scoped npm client for the private TCGplayer seller interface. It isolates seller authentication/session behavior and the order-fulfillment endpoints required by authorized sellers, while remaining reusable by applications unrelated to TCGPlayerAlert.
 
 The primary consumer is:
 
@@ -12,7 +12,7 @@ The primary consumer is:
 
 ## Current Phase
 
-The initial read-only npm client implementation is authorized. Keep work limited to the smallest reusable seller authentication/session, order confirmation, and packing-slip surface; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
+The reusable seller-fulfillment client is authorized, including explicit tracking and shipment mutations. Keep work limited to authentication/session, order discovery and confirmation, fulfillment documents, carrier detection, tracking submission, and shipment status; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
 
 ## Scope
 
@@ -23,6 +23,8 @@ This repository owns:
 - Runtime validation and normalization of private API requests and responses.
 - Retrieval of authorized seller orders needed to confirm a sale notification.
 - Retrieval of packing-slip content and metadata.
+- Retrieval of pull-sheet exports and carrier detection.
+- Explicit, seller-scoped tracking and shipment-status mutations with reconciliation safeguards.
 - Typed errors, retry hints, compatibility detection, and sanitized contract fixtures.
 - A stable, documented client contract that applications can version and consume.
 - npm packaging, compiled runtime output, type declarations, and release compatibility.
@@ -35,7 +37,7 @@ This repository does not own:
 - User-configurable rules or action dispatch.
 - Printer discovery, label rendering, or print-job submission.
 - Application UI, user accounts, application databases, or deployment stacks.
-- Marking orders shipped, purchasing postage, changing inventory, or other seller mutations unless separately requested, reviewed, and explicitly authorized.
+- Purchasing postage, refunds, cancellations, inventory or pricing changes, customer messaging, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized.
 
 If a feature can be expressed without knowledge of TCGplayer's private transport, it probably belongs in the consuming application rather than here.
 
@@ -185,15 +187,11 @@ A change is done only when:
 6. Compatibility assumptions, provenance, public contract, and release impact are documented.
 7. The diff contains no unrelated application functionality.
 
-## Early Decisions Still Required
+## Outstanding Release Decisions
 
-- Implementation language, supported Node.js versions, module formats, package name, and registry.
-- Exact authentication/session acquisition and renewal boundaries.
-- Verified upstream license or permission status and reuse strategy.
-- Initial read-only endpoint inventory and observed response formats.
-- Supported packing-slip content types and size limits.
-- Session-storage interface and secure defaults.
-- Compatibility-test strategy for an authorized seller account.
-- Versioning policy before the first consuming application integration.
+- Choose the distribution license and npm registry access policy before publication.
+- Decide whether session acquisition or renewal will remain entirely caller-owned or gain a separately reviewed package capability.
+- Perform supervised live tracking and shipment compatibility checks when a newly received order is available; never add these mutations to ordinary CI.
+- Finalize the first release/versioning policy before application integration.
 
-Resolve consequential choices with short architecture decision records before implementation.
+Record consequential choices with short architecture decision records.

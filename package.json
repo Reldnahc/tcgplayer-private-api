@@ -1,7 +1,7 @@
 {
   "name": "tcgplayer-private-api",
   "version": "0.1.0",
-  "description": "Unofficial read-only client for authorized TCGplayer seller orders and packing slips",
+  "description": "Unofficial server-side client for authorized TCGplayer seller order fulfillment",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -42,7 +42,9 @@
     "tcgplayer",
     "seller",
     "orders",
-    "packing-slip"
+    "packing-slip",
+    "tracking",
+    "fulfillment"
   ],
   "license": "UNLICENSED",
   "repository": {

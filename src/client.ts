@@ -1,24 +1,64 @@
 import { invalidArgument, TcgplayerApiError } from "./errors.js";
 import { SellerApiTransport } from "./transport.js";
 import type {
+  AddOrderTrackingInput,
   ConfirmedSellerOrder,
   ConfirmSellerOrderInput,
+  DetectCarrierResult,
   ExportPackingSlipsInput,
+  ExportPullSheetInput,
   GetPackingSlipInput,
+  MarkOrdersShippedInput,
+  MarkOrdersShippedResult,
+  OrderFulfillmentMutationResult,
   PackingSlipDocument,
+  PullSheetDocument,
   RequestOptions,
   SearchSellerOrdersInput,
   SearchSellerOrdersResult,
   SellerOrderDetail,
+  SellerOrderStatusFilter,
+  ShipOrderWithoutTrackingInput,
   TcgplayerSellerClientOptions,
 } from "./types.js";
 import {
+  parseDetectCarrierResult,
+  parseMarkOrdersShippedResponse,
   parseSearchSellerOrdersResult,
   parseSellerOrderDetail,
 } from "./validation.js";
 
 const SEARCH_PATH = "/orders/search?api-version=2.0";
 const PACKING_SLIPS_PATH = "/orders/packing-slips/export?api-version=2.0";
+const PULL_SHEET_PATH = "/orders/pull-sheets/export?api-version=2.0";
+const DETECT_CARRIER_PATH = "/orders/detect-carrier?api-version=2.0";
+const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
+const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
+  "Canceled",
+  "Delivered",
+  "PickedUp",
+  "PickupOrderCanceled",
+  "Processing",
+  "Pulling",
+  "ReadyForPickup",
+  "ReadyToShip",
+  "Received",
+  "Shipped",
+  "ShippedOrderCanceled",
+]);
+const PULL_SHEET_COLUMNS = [
+  "Product Line",
+  "Product Name",
+  "Condition",
+  "Number",
+  "Set",
+  "Rarity",
+  "Quantity",
+  "Main Photo URL",
+  "Set Release Date",
+  "SkuId",
+  "Order Quantity",
+] as const;
 
 function containsControlCharacter(value: string): boolean {
   for (const character of value) {
@@ -76,6 +116,21 @@ function requestSignal(options: RequestOptions | undefined) {
   return options?.signal;
 }
 
+function isShippedStatus(status: string): boolean {
+  const normalized = status.trim().toLowerCase();
+  return normalized.startsWith("shipped") || normalized === "delivered";
+}
+
+function validatePullSheet(text: string): void {
+  const firstLine = text.replace(/^\uFEFF/u, "").split(/\r?\n/u, 1)[0] ?? "";
+  if (firstLine !== PULL_SHEET_COLUMNS.join(",")) {
+    throw new TcgplayerApiError(
+      "INVALID_RESPONSE",
+      "TCGplayer returned a pull sheet with an unsupported column schema.",
+    );
+  }
+}
+
 export class TcgplayerSellerClient {
   private readonly transport: SellerApiTransport;
 
@@ -112,10 +167,10 @@ export class TcgplayerSellerClient {
     }
     const statuses = input.statuses?.map((status, index) => {
       const normalized = requiredText(`statuses[${index}]`, status, 64);
-      if (normalized !== "ReadyToShip") {
+      if (!SELLER_ORDER_STATUSES.has(normalized as SellerOrderStatusFilter)) {
         throw invalidArgument(`statuses[${index}] is unsupported.`);
       }
-      return normalized;
+      return normalized as SellerOrderStatusFilter;
     });
     if (input.sort !== undefined && !Array.isArray(input.sort)) {
       throw invalidArgument("sort must be an array.");
@@ -264,6 +319,189 @@ export class TcgplayerSellerClient {
       },
       options,
     );
+  }
+
+  async detectCarrier(
+    trackingNumber: string,
+    options?: RequestOptions,
+  ): Promise<DetectCarrierResult> {
+    const normalized = requiredText("trackingNumber", trackingNumber, 256);
+    const response = await this.transport.json(
+      "POST",
+      DETECT_CARRIER_PATH,
+      { trackingNumber: normalized },
+      requestSignal(options),
+    );
+    return parseDetectCarrierResult(response);
+  }
+
+  async exportPullSheet(
+    input: ExportPullSheetInput,
+    options?: RequestOptions,
+  ): Promise<PullSheetDocument> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Pull-sheet input is required.");
+    }
+    const orderNumbers = normalizeOrderNumbers(input.orderNumbers);
+    if (typeof input.timezoneOffsetMinutes !== "number") {
+      throw invalidArgument("timezoneOffsetMinutes must be a number.");
+    }
+    const timezoneOffsetMinutes = boundedInteger(
+      "timezoneOffsetMinutes",
+      input.timezoneOffsetMinutes,
+      0,
+      -840,
+      840,
+    );
+    const text = await this.transport.text(
+      PULL_SHEET_PATH,
+      { orderNumbers, timezoneOffset: timezoneOffsetMinutes },
+      requestSignal(options),
+    );
+    validatePullSheet(text);
+    return {
+      text,
+      contentType: "text/csv",
+      fileName: "pull-sheet.csv",
+      orderNumbers,
+    };
+  }
+
+  async addOrderTracking(
+    input: AddOrderTrackingInput,
+    options?: RequestOptions,
+  ): Promise<OrderFulfillmentMutationResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Tracking input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const orderNumber = requiredText("orderNumber", input.orderNumber, 128);
+    const carrier = requiredText("carrier", input.carrier, 128);
+    const trackingNumber = requiredText(
+      "trackingNumber",
+      input.trackingNumber,
+      256,
+    );
+    const confirmed = await this.confirmOrder(
+      { sellerKey, orderNumber },
+      options,
+    );
+    if (
+      confirmed.order.trackingNumbers.some(
+        (tracking) =>
+          tracking.trackingNumber.trim().toLowerCase() ===
+          trackingNumber.toLowerCase(),
+      )
+    ) {
+      return { orderNumber, outcome: "already-applied" };
+    }
+
+    await this.transport.command(
+      `/orders/${encodeURIComponent(orderNumber)}/tracking?api-version=2.0`,
+      { carrier, trackingNumber },
+      requestSignal(options),
+    );
+    return { orderNumber, outcome: "applied" };
+  }
+
+  async shipOrderWithoutTracking(
+    input: ShipOrderWithoutTrackingInput,
+    options?: RequestOptions,
+  ): Promise<OrderFulfillmentMutationResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Shipment input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const orderNumber = requiredText("orderNumber", input.orderNumber, 128);
+    const confirmed = await this.confirmOrder(
+      { sellerKey, orderNumber },
+      options,
+    );
+    if (isShippedStatus(confirmed.order.status)) {
+      return { orderNumber, outcome: "already-applied" };
+    }
+
+    await this.transport.command(
+      `/orders/${encodeURIComponent(orderNumber)}/ship-no-tracking?api-version=2.0`,
+      undefined,
+      requestSignal(options),
+    );
+    return { orderNumber, outcome: "applied" };
+  }
+
+  async markOrdersShipped(
+    input: MarkOrdersShippedInput,
+    options?: RequestOptions,
+  ): Promise<MarkOrdersShippedResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Shipment input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const orderNumbers = normalizeOrderNumbers(input.orderNumbers);
+    const alreadyShippedOrderNumbers: string[] = [];
+    const pendingOrderNumbers: string[] = [];
+    for (const orderNumber of orderNumbers) {
+      const confirmed = await this.confirmOrder(
+        { sellerKey, orderNumber },
+        options,
+      );
+      if (isShippedStatus(confirmed.order.status)) {
+        alreadyShippedOrderNumbers.push(orderNumber);
+      } else {
+        pendingOrderNumbers.push(orderNumber);
+      }
+    }
+    if (pendingOrderNumbers.length === 0) {
+      return {
+        updatedOrderNumbers: [],
+        alreadyShippedOrderNumbers,
+        errors: [],
+      };
+    }
+
+    const response = await this.transport.mutationJson(
+      STATUS_UPDATES_PATH,
+      { orderNumbers: pendingOrderNumbers, status: "Shipped" },
+      requestSignal(options),
+    );
+    let parsed: ReturnType<typeof parseMarkOrdersShippedResponse>;
+    try {
+      parsed = parseMarkOrdersShippedResponse(response);
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "AMBIGUOUS_RESULT",
+        "TCGplayer accepted a shipment mutation but returned an unsupported result. Reconcile the affected orders.",
+        { cause: error },
+      );
+    }
+    const submitted = new Set(pendingOrderNumbers);
+    const failed = new Set<string>();
+    for (const error of parsed.errors) {
+      if (!submitted.has(error.orderNumber) || failed.has(error.orderNumber)) {
+        throw new TcgplayerApiError(
+          "AMBIGUOUS_RESULT",
+          "TCGplayer returned inconsistent results for a shipment mutation. Reconcile the affected orders.",
+        );
+      }
+      failed.add(error.orderNumber);
+    }
+    const updatedOrderNumbers = pendingOrderNumbers.filter(
+      (orderNumber) => !failed.has(orderNumber),
+    );
+    if (
+      parsed.updatedCount !== updatedOrderNumbers.length ||
+      parsed.updatedCount + parsed.errorCount !== pendingOrderNumbers.length
+    ) {
+      throw new TcgplayerApiError(
+        "AMBIGUOUS_RESULT",
+        "TCGplayer returned inconsistent counts for a shipment mutation. Reconcile the affected orders.",
+      );
+    }
+    return {
+      updatedOrderNumbers,
+      alreadyShippedOrderNumbers,
+      errors: parsed.errors,
+    };
   }
 }
 
