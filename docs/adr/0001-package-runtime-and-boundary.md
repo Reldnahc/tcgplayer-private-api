@@ -16,7 +16,7 @@ The seller client must be installable by TCGPlayerAlert and unrelated server app
 - Pin transitive build tooling when necessary to resolve audited development-only vulnerabilities, and remove overrides once direct tools declare a patched compatible range.
 - Accept a caller-provided session value or session provider; do not own credential persistence.
 - Keep the first public surface read-only: order search, order detail, exact-order confirmation, and packing-slip export. ADR 0002 subsequently expands this boundary with explicitly authorized fulfillment mutations.
-- Keep the TCGplayer origin fixed in production code. Tests replace `fetch` rather than redirecting credentials to another host.
+- Keep the TCGplayer origin allowlist fixed in production code. Tests replace `fetch` rather than redirecting credentials to another host. Order operations use `order-management-api.tcgplayer.com`; the explicitly authorized price-only mutation uses `store.tcgplayer.com`.
 - Treat the package contract, types, declared exports, and error semantics as versioned API.
 
 ## Consequences

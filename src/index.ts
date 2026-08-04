@@ -38,9 +38,12 @@ export type {
   SellerOrderTax,
   SellerOrderTrackingNumber,
   SellerOrderTransaction,
+  SellerPriceUpdate,
   ShipOrderWithoutTrackingInput,
   SortDirection,
   TcgplayerSellerClientOptions,
   TcgplayerSession,
   TcgplayerSessionProvider,
+  UpdateSellerPricesInput,
+  UpdateSellerPricesResult,
 } from "./types.js";

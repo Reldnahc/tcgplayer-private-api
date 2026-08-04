@@ -1,6 +1,6 @@
 # tcgplayer-private-api
 
-An unofficial server-side npm client for authorized TCGplayer seller order fulfillment. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, and shipment status updates without exposing raw private endpoints.
+An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, and price-only listing updates without exposing raw private endpoints.
 
 This project is not affiliated with, endorsed by, or supported by TCGplayer. The seller interface is undocumented and can change without notice. Review the agreements and policies that apply to your account before using it.
 
@@ -89,6 +89,7 @@ const packingSlip = await client.getPackingSlip({
 - `addOrderTracking(input, options?)`
 - `shipOrderWithoutTracking(input, options?)`
 - `markOrdersShipped(input, options?)`
+- `updateSellerPrices(input, options?)`
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
 
@@ -115,6 +116,31 @@ await client.markOrdersShipped({
 For an order intentionally shipped without tracking, use `shipOrderWithoutTracking`. Tracking submission and marking shipped are distinct operations, matching the Seller Portal workflow.
 
 Mutations are never automatically retried. A timeout, lost connection, server error, or invalid success response returns `AMBIGUOUS_RESULT`; re-read the affected order and reconcile tracking/status before choosing whether to retry. Do not treat this error as permission to immediately resubmit.
+
+## Price updates
+
+`updateSellerPrices` reproduces Seller Portal's price-only inventory update. Each update deliberately requires the listing's current quantity, reserve quantity, channel, and identifiers; the method always sends an add-to-quantity value of zero. This prevents a price update from silently inventing or clearing inventory state.
+
+```ts
+await client.updateSellerPrices({
+  updates: [
+    {
+      productId: 123,
+      productName: "Example card",
+      productConditionId: 456,
+      conditionId: 1,
+      channelId: 0,
+      categoryName: "Example game",
+      quantity: 7,
+      price: 12.34,
+      storePriceCustomId: null,
+      reserveQuantity: 0,
+    },
+  ],
+});
+```
+
+The method accepts at most 100 distinct product-condition/channel pairs per call, validates prices to cents, and never retries. A returned success means Seller Portal accepted the update request; its own inventory processing can still be asynchronous. `AMBIGUOUS_RESULT` means the listing must be checked in Seller Portal before any retry.
 
 ## Errors
 
@@ -152,6 +178,6 @@ TCGPLAYER_AUTH_COOKIE=... TCGPLAYER_SELLER_KEY=... npm run compatibility:check
 
 To check an exact order, add `TCGPLAYER_ORDER_NUMBER`. To retrieve and validate its packing slip or pull sheet in memory, explicitly set `TCGPLAYER_CHECK_PACKING_SLIP=1` or `TCGPLAYER_CHECK_PULL_SHEET=1`. The script never writes order data or documents to disk.
 
-Tracking and shipment methods are covered with synthetic contract tests. Exercise them against a real account only with a newly received order selected for that purpose and deliberate operator supervision.
+Tracking, shipment, and price-update methods are covered with synthetic contract tests. Exercise mutations against a real account only with a deliberately selected order or listing and operator supervision.
 
 See [docs/PROVENANCE.md](docs/PROVENANCE.md) for the behavioral reference and clean implementation boundary.

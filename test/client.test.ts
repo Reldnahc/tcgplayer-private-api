@@ -55,6 +55,151 @@ function clientWith(
 }
 
 describe("TcgplayerSellerClient", () => {
+  it("submits a price-only update using the observed Seller Portal form contract", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.updateSellerPrices({
+      updates: [
+        {
+          productId: 123,
+          productName: "Synthetic Card",
+          productConditionId: 456,
+          conditionId: 1,
+          channelId: 0,
+          categoryName: "Synthetic Game",
+          quantity: 7,
+          price: 12.34,
+          storePriceCustomId: null,
+          reserveQuantity: 2,
+        },
+      ],
+    });
+
+    expect(result).toEqual({ submittedProductConditionIds: [456] });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.url).toBe(
+      "https://store.tcgplayer.com/admin/product/updateinventory",
+    );
+    expect(requests[0]?.init?.method).toBe("POST");
+    const headers = new Headers(requests[0]?.init?.headers);
+    expect(headers.get("content-type")).toBe(
+      "application/x-www-form-urlencoded; charset=UTF-8",
+    );
+    expect(headers.get("x-requested-with")).toBe("XMLHttpRequest");
+    expect(headers.get("origin")).toBe("https://store.tcgplayer.com");
+    const form = new URLSearchParams(String(requests[0]?.init?.body));
+    expect(Object.fromEntries(form)).toEqual({
+      "productQuantityPrices[0][ProductId]": "123",
+      "productQuantityPrices[0][ProductName]": "Synthetic Card",
+      "productQuantityPrices[0][AddToQuantity]": "0",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][ProductConditionId]":
+        "456",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][ConditionId]": "1",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][ChannelId]": "0",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][CategoryName]":
+        "Synthetic Game",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][Quantity]": "7",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][Price]": "12.34",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][ExistingQuantity]":
+        "0",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][StorePriceCustomId]":
+        "",
+      "productQuantityPrices[0][ConditionQuantityPrices][0][ReserveQuantity]":
+        "2",
+    });
+  });
+
+  it("rejects unsafe price updates before sending a request", async () => {
+    const { fetchImplementation, requests } = fetchQueue([]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.updateSellerPrices({
+        updates: [
+          {
+            productId: 123,
+            productName: "Synthetic Card",
+            productConditionId: 456,
+            conditionId: 1,
+            channelId: 0,
+            categoryName: "Synthetic Game",
+            quantity: 7,
+            price: 12.345,
+            storePriceCustomId: null,
+            reserveQuantity: 2,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    expect(requests).toHaveLength(0);
+  });
+
+  it("accepts ordinary two-decimal prices despite floating-point representation", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await client.updateSellerPrices({
+      updates: [
+        {
+          productId: 123,
+          productName: "Synthetic Card",
+          productConditionId: 456,
+          conditionId: 1,
+          channelId: 0,
+          categoryName: "Synthetic Game",
+          quantity: 7,
+          price: 1.15,
+          storePriceCustomId: null,
+          reserveQuantity: 2,
+        },
+      ],
+    });
+
+    const form = new URLSearchParams(String(requests[0]?.init?.body));
+    expect(
+      form.get("productQuantityPrices[0][ConditionQuantityPrices][0][Price]"),
+    ).toBe("1.15");
+  });
+
+  it("does not retry an ambiguous Seller Portal price mutation", async () => {
+    const requests: CapturedRequest[] = [];
+    const fetchImplementation: typeof globalThis.fetch = async (
+      input,
+      init,
+    ) => {
+      requests.push({ url: String(input), init });
+      throw new Error("synthetic disconnect");
+    };
+    const client = clientWith(fetchImplementation, {
+      retry: { maxRetries: 5, baseDelayMs: 0, maxDelayMs: 0 },
+    });
+
+    await expect(
+      client.updateSellerPrices({
+        updates: [
+          {
+            productId: 123,
+            productName: "Synthetic Card",
+            productConditionId: 456,
+            conditionId: 1,
+            channelId: 0,
+            categoryName: "Synthetic Game",
+            quantity: 7,
+            price: 12.34,
+            storePriceCustomId: null,
+            reserveQuantity: 2,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "AMBIGUOUS_RESULT" });
+    expect(requests).toHaveLength(1);
+  });
+
   it("searches seller orders with the observed request contract", async () => {
     const { fetchImplementation, requests } = fetchQueue([
       jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),

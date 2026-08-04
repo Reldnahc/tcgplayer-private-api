@@ -10,6 +10,7 @@ import type {
 } from "./types.js";
 
 const ORDER_MANAGEMENT_ORIGIN = "https://order-management-api.tcgplayer.com";
+const SELLER_PORTAL_ORIGIN = "https://store.tcgplayer.com";
 const DEFAULT_USER_AGENT = "tcgplayer-private-api";
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
@@ -42,7 +43,9 @@ interface RequestSpec {
   readonly method: "GET" | "POST";
   readonly path: string;
   readonly body?: unknown;
-  readonly accept: "application/json" | "application/pdf" | "text/csv";
+  readonly bodyFormat?: "json" | "form";
+  readonly origin?: "order-management" | "seller-portal";
+  readonly accept: "application/json" | "application/pdf" | "text/csv" | "*/*";
   readonly retryMode: "safe" | "never";
   readonly discardResponseBody?: boolean;
   readonly signal?: AbortSignal;
@@ -233,7 +236,7 @@ function errorForStatus(
   if (retryMode === "never" && response.status >= 500) {
     return new TcgplayerApiError(
       "AMBIGUOUS_RESULT",
-      "TCGplayer returned a server error for a fulfillment mutation. Reconcile the order before deciding whether to retry.",
+      "TCGplayer returned a server error for a seller mutation. Reconcile the affected resource before deciding whether to retry.",
       errorOptions(response),
     );
   }
@@ -555,6 +558,31 @@ export class SellerApiTransport {
     }
   }
 
+  async sellerPortalFormCommand(
+    path: string,
+    body: URLSearchParams,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const result = await this.request({
+      method: "POST",
+      path,
+      body,
+      bodyFormat: "form",
+      origin: "seller-portal",
+      accept: "*/*",
+      retryMode: "never",
+      discardResponseBody: true,
+      ...(signal === undefined ? {} : { signal }),
+    });
+    if (result.contentType === "text/html") {
+      throw new TcgplayerApiError(
+        "AUTHENTICATION_REQUIRED",
+        "TCGplayer returned an HTML page for a seller mutation. Refresh the authorized session and reconcile the affected resource.",
+        errorOptions(result.response),
+      );
+    }
+  }
+
   async mutationJson(
     path: string,
     body: unknown,
@@ -657,12 +685,33 @@ export class SellerApiTransport {
         });
         let body: string | undefined;
         if (spec.body !== undefined) {
-          headers.set("Content-Type", "application/json");
-          body = JSON.stringify(spec.body);
+          if (spec.bodyFormat === "form") {
+            if (!(spec.body instanceof URLSearchParams)) {
+              throw invalidArgument(
+                "Form request bodies must be URLSearchParams.",
+              );
+            }
+            headers.set(
+              "Content-Type",
+              "application/x-www-form-urlencoded; charset=UTF-8",
+            );
+            headers.set("X-Requested-With", "XMLHttpRequest");
+            headers.set("Origin", SELLER_PORTAL_ORIGIN);
+            headers.set("Referer", `${SELLER_PORTAL_ORIGIN}/admin/pricing`);
+            body = spec.body.toString();
+          } else {
+            headers.set("Content-Type", "application/json");
+            body = JSON.stringify(spec.body);
+          }
         }
 
+        const origin =
+          spec.origin === "seller-portal"
+            ? SELLER_PORTAL_ORIGIN
+            : ORDER_MANAGEMENT_ORIGIN;
+
         const response = await this.fetchImplementation(
-          new URL(spec.path, ORDER_MANAGEMENT_ORIGIN),
+          new URL(spec.path, origin),
           {
             method: spec.method,
             headers,
@@ -724,7 +773,7 @@ export class SellerApiTransport {
           throw spec.retryMode === "never"
             ? new TcgplayerApiError(
                 "AMBIGUOUS_RESULT",
-                "A fulfillment mutation was aborted after submission began or may have begun. Reconcile the affected order before deciding whether to retry.",
+                "A seller mutation was aborted after submission began or may have begun. Reconcile the affected resource before deciding whether to retry.",
                 { cause: error },
               )
             : new TcgplayerApiError("ABORTED", "The request was aborted.", {
@@ -740,7 +789,7 @@ export class SellerApiTransport {
           throw spec.retryMode === "never"
             ? new TcgplayerApiError(
                 "AMBIGUOUS_RESULT",
-                "A fulfillment mutation timed out. Reconcile the affected order before deciding whether to retry.",
+                "A seller mutation timed out. Reconcile the affected resource before deciding whether to retry.",
                 { cause: error },
               )
             : new TcgplayerApiError(
@@ -757,7 +806,7 @@ export class SellerApiTransport {
         throw spec.retryMode === "never"
           ? new TcgplayerApiError(
               "AMBIGUOUS_RESULT",
-              "A fulfillment mutation lost its network response. Reconcile the affected order before deciding whether to retry.",
+              "A seller mutation lost its network response. Reconcile the affected resource before deciding whether to retry.",
               { cause: error },
             )
           : new TcgplayerApiError(

@@ -20,6 +20,8 @@ import type {
   SellerOrderStatusFilter,
   ShipOrderWithoutTrackingInput,
   TcgplayerSellerClientOptions,
+  UpdateSellerPricesInput,
+  UpdateSellerPricesResult,
 } from "./types.js";
 import {
   parseDetectCarrierResult,
@@ -33,6 +35,7 @@ const PACKING_SLIPS_PATH = "/orders/packing-slips/export?api-version=2.0";
 const PULL_SHEET_PATH = "/orders/pull-sheets/export?api-version=2.0";
 const DETECT_CARRIER_PATH = "/orders/detect-carrier?api-version=2.0";
 const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
+const UPDATE_INVENTORY_PATH = "/admin/product/updateinventory";
 const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
   "Canceled",
   "Delivered",
@@ -96,6 +99,31 @@ function boundedInteger(
     );
   }
   return resolved;
+}
+
+function finiteNumber(
+  name: string,
+  value: number,
+  minimum: number,
+  maximum: number,
+): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < minimum ||
+    value > maximum
+  ) {
+    throw invalidArgument(`${name} must be between ${minimum} and ${maximum}.`);
+  }
+  return value;
+}
+
+function appendFormValue(
+  form: URLSearchParams,
+  path: string,
+  value: string | number | boolean | null,
+): void {
+  form.append(path, value === null ? "" : String(value));
 }
 
 function normalizeOrderNumbers(values: readonly string[]): string[] {
@@ -502,6 +530,148 @@ export class TcgplayerSellerClient {
       alreadyShippedOrderNumbers,
       errors: parsed.errors,
     };
+  }
+
+  async updateSellerPrices(
+    input: UpdateSellerPricesInput,
+    options?: RequestOptions,
+  ): Promise<UpdateSellerPricesResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Price-update input is required.");
+    }
+    if (
+      !Array.isArray(input.updates) ||
+      input.updates.length === 0 ||
+      input.updates.length > 100
+    ) {
+      throw invalidArgument("updates must contain 1-100 price updates.");
+    }
+
+    const form = new URLSearchParams();
+    const listingKeys = new Set<string>();
+    const submittedProductConditionIds: number[] = [];
+    input.updates.forEach((update, index) => {
+      if (typeof update !== "object" || update === null) {
+        throw invalidArgument(`updates[${index}] must be an object.`);
+      }
+      const path = `productQuantityPrices[${index}]`;
+      const productId = boundedInteger(
+        `updates[${index}].productId`,
+        update.productId,
+        0,
+        1,
+        Number.MAX_SAFE_INTEGER,
+      );
+      const productConditionId = boundedInteger(
+        `updates[${index}].productConditionId`,
+        update.productConditionId,
+        0,
+        1,
+        Number.MAX_SAFE_INTEGER,
+      );
+      const conditionId = boundedInteger(
+        `updates[${index}].conditionId`,
+        update.conditionId,
+        0,
+        1,
+        Number.MAX_SAFE_INTEGER,
+      );
+      const channelId = boundedInteger(
+        `updates[${index}].channelId`,
+        update.channelId,
+        0,
+        0,
+        Number.MAX_SAFE_INTEGER,
+      );
+      const quantity = boundedInteger(
+        `updates[${index}].quantity`,
+        update.quantity,
+        0,
+        0,
+        10_000_000,
+      );
+      const price = finiteNumber(
+        `updates[${index}].price`,
+        update.price,
+        0.01,
+        1_000_000,
+      );
+      const priceInCents = price * 100;
+      if (Math.abs(priceInCents - Math.round(priceInCents)) > 1e-9) {
+        throw invalidArgument(
+          `updates[${index}].price must have at most two decimal places.`,
+        );
+      }
+      const reserveQuantity = finiteNumber(
+        `updates[${index}].reserveQuantity`,
+        update.reserveQuantity,
+        0,
+        10_000_000,
+      );
+      const storePriceCustomId =
+        update.storePriceCustomId === null
+          ? null
+          : boundedInteger(
+              `updates[${index}].storePriceCustomId`,
+              update.storePriceCustomId,
+              0,
+              0,
+              Number.MAX_SAFE_INTEGER,
+            );
+      const key = `${productConditionId}:${channelId}`;
+      if (listingKeys.has(key)) {
+        throw invalidArgument(
+          "updates must not contain duplicate productConditionId/channelId pairs.",
+        );
+      }
+      listingKeys.add(key);
+      submittedProductConditionIds.push(productConditionId);
+
+      appendFormValue(form, `${path}[ProductId]`, productId);
+      appendFormValue(
+        form,
+        `${path}[ProductName]`,
+        requiredText(`updates[${index}].productName`, update.productName, 1024),
+      );
+      appendFormValue(form, `${path}[AddToQuantity]`, 0);
+      const conditionPath = `${path}[ConditionQuantityPrices][0]`;
+      appendFormValue(
+        form,
+        `${conditionPath}[ProductConditionId]`,
+        productConditionId,
+      );
+      appendFormValue(form, `${conditionPath}[ConditionId]`, conditionId);
+      appendFormValue(form, `${conditionPath}[ChannelId]`, channelId);
+      appendFormValue(
+        form,
+        `${conditionPath}[CategoryName]`,
+        requiredText(
+          `updates[${index}].categoryName`,
+          update.categoryName,
+          256,
+        ),
+      );
+      appendFormValue(form, `${conditionPath}[Quantity]`, quantity);
+      appendFormValue(form, `${conditionPath}[Price]`, price.toFixed(2));
+      appendFormValue(form, `${conditionPath}[ExistingQuantity]`, 0);
+      appendFormValue(
+        form,
+        `${conditionPath}[StorePriceCustomId]`,
+        storePriceCustomId,
+      );
+      appendFormValue(
+        form,
+        `${conditionPath}[ReserveQuantity]`,
+        reserveQuantity,
+      );
+    });
+
+    await this.transport.sellerPortalFormCommand(
+      UPDATE_INVENTORY_PATH,
+      form,
+      requestSignal(options),
+    );
+    return { submittedProductConditionIds };
   }
 }
 

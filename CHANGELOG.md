@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.2.0 - Unreleased
+
+- Add validated price-only Seller Portal listing updates through `updateSellerPrices`.
+- Preserve quantity and reserve quantity in the observed update contract and reject duplicate listing/channel pairs.
+- Keep price mutations non-retrying and report uncertain outcomes as `AMBIGUOUS_RESULT`.
+
 ## 0.1.0 - Unreleased
 
 - Establish the independently implemented seller-fulfillment client.

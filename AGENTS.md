@@ -37,7 +37,7 @@ This repository does not own:
 - User-configurable rules or action dispatch.
 - Printer discovery, label rendering, or print-job submission.
 - Application UI, user accounts, application databases, or deployment stacks.
-- Purchasing postage, refunds, cancellations, inventory or pricing changes, customer messaging, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized.
+- Purchasing postage, refunds, cancellations, quantity changes, customer messaging, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized. Price-only listing updates are authorized when they preserve current quantity/reserve state and follow the mutation-safety rules below.
 
 If a feature can be expressed without knowledge of TCGplayer's private transport, it probably belongs in the consuming application rather than here.
 

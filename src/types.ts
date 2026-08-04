@@ -223,3 +223,30 @@ export interface MarkOrdersShippedResult {
   readonly alreadyShippedOrderNumbers: readonly string[];
   readonly errors: readonly MarkOrdersShippedError[];
 }
+
+/**
+ * The complete current listing state required by Seller Portal's observed
+ * price-only inventory update. Supplying quantity and reserve quantity avoids
+ * accidentally clearing either value while changing the price.
+ */
+export interface SellerPriceUpdate {
+  readonly productId: number;
+  readonly productName: string;
+  /** Seller Portal calls this ProductConditionId; it is the listing SKU id. */
+  readonly productConditionId: number;
+  readonly conditionId: number;
+  readonly channelId: number;
+  readonly categoryName: string;
+  readonly quantity: number;
+  readonly price: number;
+  readonly storePriceCustomId: number | null;
+  readonly reserveQuantity: number;
+}
+
+export interface UpdateSellerPricesInput {
+  readonly updates: readonly SellerPriceUpdate[];
+}
+
+export interface UpdateSellerPricesResult {
+  readonly submittedProductConditionIds: readonly number[];
+}

@@ -38,6 +38,8 @@ The following files were consulted to identify those facts:
 
 The current public Seller Portal orders bundle was also inspected on 2026-08-03 to confirm protocol shapes independently. It showed carrier detection at `POST /orders/detect-carrier?api-version=2.0`, shipment without tracking at `POST /orders/{encodedOrderNumber}/ship-no-tracking?api-version=2.0`, and bulk status updates at `POST /orders/status-updates?api-version=2.0` with the status `Shipped`. No mutation was sent during inspection.
 
+The public Seller Portal pricing bundle (`/admin/scripts/pricing/main-built.31397.js`) was inspected on 2026-08-03. It showed price/inventory saves as a jQuery form POST and the product-detail save endpoint as `POST https://store.tcgplayer.com/admin/product/updateinventory`. Its submitted model includes product, condition, channel, current quantity, price, custom-price identifier, and reserve quantity fields. The package independently implements only a price-only variant with `AddToQuantity` and `ExistingQuantity` fixed at zero. No live listing mutation was sent during inspection or testing. The behavioral reference repository does not implement this mutation.
+
 ## Live compatibility observation
 
 An opt-in, read-only compatibility check against an authorized seller account on 2026-08-03 confirmed order search, exact-order confirmation, order-detail retrieval, packing-slip export, and pull-sheet export. No response bodies, credentials, order values, customer data, tracking values, or document bytes were retained.
