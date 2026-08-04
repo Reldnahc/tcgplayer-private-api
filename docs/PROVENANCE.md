@@ -24,6 +24,9 @@ The inspected revision showed these seller behaviors:
 - Observed search range: `LastThreeMonths`
 - Observed ready-to-ship filter: `ReadyToShip`
 - Observed packing-slip format values: `ByRelease` and `Default`
+- Marketplace search origin: `https://mp-search-api.tcgplayer.com`
+- Marketplace search: `POST /v1/search/request`
+- Seller inventory filter: live listings for channel `0`, scoped by `sellerKey`, with quantity at least one
 
 The following files were consulted to identify those facts:
 
@@ -35,8 +38,12 @@ The following files were consulted to identify those facts:
 - `app/integrations/tcgplayer/client/export-packing-slips.server.ts`
 - `app/integrations/tcgplayer/client/export-pull-sheet.server.ts`
 - `app/integrations/tcgplayer/client/apply-order-tracking.server.ts`
+- `app/integrations/tcgplayer/client/get-search-results.server.ts`
+- `app/features/seller-management/routes/api.seller-inventory.server.ts`
 
 The current public Seller Portal orders bundle was also inspected on 2026-08-03 to confirm protocol shapes independently. It showed carrier detection at `POST /orders/detect-carrier?api-version=2.0`, shipment without tracking at `POST /orders/{encodedOrderNumber}/ship-no-tracking?api-version=2.0`, and bulk status updates at `POST /orders/status-updates?api-version=2.0` with the status `Shipped`. No mutation was sent during inspection.
+
+A read-only marketplace compatibility observation on 2026-08-03 confirmed seller-key inventory filtering and product searches filtered by condition. Only schema and aggregate counts were inspected; listing identifiers, names, prices, and credentials were not retained.
 
 The public Seller Portal pricing bundle (`/admin/scripts/pricing/main-built.31397.js`) was inspected on 2026-08-03. It showed price/inventory saves as a jQuery form POST and the product-detail save endpoint as `POST https://store.tcgplayer.com/admin/product/updateinventory`. Its submitted model includes product, condition, channel, current quantity, price, custom-price identifier, and reserve quantity fields. The package independently implements only a price-only variant with `AddToQuantity` and `ExistingQuantity` fixed at zero. No live listing mutation was sent during inspection or testing. The behavioral reference repository does not implement this mutation.
 

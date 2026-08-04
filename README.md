@@ -1,6 +1,6 @@
 # tcgplayer-private-api
 
-An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, and price-only listing updates without exposing raw private endpoints.
+An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, seller inventory and marketplace listing reads, and price-only listing updates without exposing raw private endpoints.
 
 This project is not affiliated with, endorsed by, or supported by TCGplayer. The seller interface is undocumented and can change without notice. Review the agreements and policies that apply to your account before using it.
 
@@ -89,6 +89,8 @@ const packingSlip = await client.getPackingSlip({
 - `addOrderTracking(input, options?)`
 - `shipOrderWithoutTracking(input, options?)`
 - `markOrdersShipped(input, options?)`
+- `searchMarketplaceProducts(input, options?)`
+- `listSellerInventory(input, options?)`
 - `updateSellerPrices(input, options?)`
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
@@ -118,6 +120,8 @@ For an order intentionally shipped without tracking, use `shipOrderWithoutTracki
 Mutations are never automatically retried. A timeout, lost connection, server error, or invalid success response returns `AMBIGUOUS_RESULT`; re-read the affected order and reconcile tracking/status before choosing whether to retry. Do not treat this error as permission to immediately resubmit.
 
 ## Price updates
+
+Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve current comparison listings by product, condition, printing, and language. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, and whether to raise or lower a price.
 
 `updateSellerPrices` reproduces Seller Portal's price-only inventory update. Each update deliberately requires the listing's current quantity, reserve quantity, channel, and identifiers; the method always sends an add-to-quantity value of zero. This prevents a price update from silently inventing or clearing inventory state.
 

@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.3.0 - Unreleased
+
+- Add validated, paginated seller-inventory reads through `listSellerInventory`.
+- Add product, condition, printing, and language marketplace comparison searches through `searchMarketplaceProducts`.
+- Keep pricing policy outside the transport package so applications can implement their own repricing rules.
+
 ## 0.2.0 - Unreleased
 
 - Add validated price-only Seller Portal listing updates through `updateSellerPrices`.

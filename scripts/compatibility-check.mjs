@@ -43,6 +43,11 @@ if (!authCookie || !sellerKey) {
       `Order search compatible; remote reported ${search.totalOrders} matching order(s).`,
     );
 
+    const inventory = await client.listSellerInventory({ sellerKey });
+    writeOutput(
+      `Seller inventory search compatible; remote reported ${inventory.length} product(s).`,
+    );
+
     if (orderNumber) {
       await client.confirmOrder({ sellerKey, orderNumber });
       writeOutput("Exact-order confirmation compatible.");

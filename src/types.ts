@@ -250,3 +250,65 @@ export interface UpdateSellerPricesInput {
 export interface UpdateSellerPricesResult {
   readonly submittedProductConditionIds: readonly number[];
 }
+
+export interface MarketplaceListingCustomData {
+  readonly customListingId?: number;
+}
+
+/** A live marketplace listing returned by TCGplayer's marketplace search. */
+export interface MarketplaceListing {
+  readonly listingId: number;
+  readonly productId: number;
+  /** Seller Portal calls this ProductConditionId; it is the listing SKU id. */
+  readonly productConditionId: number;
+  readonly conditionId: number;
+  readonly condition: string;
+  readonly channelId: number;
+  readonly printing: string;
+  readonly language: string;
+  readonly languageId: number;
+  readonly sellerKey: string;
+  readonly sellerName: string;
+  readonly quantity: number;
+  readonly price: number;
+  readonly shippingPrice: number;
+  readonly customData: MarketplaceListingCustomData;
+}
+
+/** Product-level search result containing its currently visible listings. */
+export interface MarketplaceProduct {
+  readonly productId: number;
+  readonly productName: string;
+  readonly productLineName: string;
+  readonly setName: string;
+  readonly rarityName: string;
+  readonly marketPrice: number;
+  readonly lowestPrice?: number;
+  readonly lowestPriceWithShipping?: number;
+  readonly totalListings: number;
+  readonly listings: readonly MarketplaceListing[];
+}
+
+export interface SearchMarketplaceProductsInput {
+  readonly productIds?: readonly number[];
+  readonly sellerKey?: string;
+  readonly conditions?: readonly string[];
+  readonly printings?: readonly string[];
+  readonly languages?: readonly string[];
+  readonly channelId?: number;
+  readonly offset?: number;
+  /** TCGplayer's observed maximum page size is 24. */
+  readonly limit?: number;
+}
+
+export interface SearchMarketplaceProductsResult {
+  readonly totalProducts: number;
+  readonly products: readonly MarketplaceProduct[];
+}
+
+export interface ListSellerInventoryInput {
+  readonly sellerKey: string;
+  readonly channelId?: number;
+  /** Maximum number of pages to read. Each page contains at most 24 products. */
+  readonly maximumPages?: number;
+}

@@ -55,6 +55,110 @@ function clientWith(
 }
 
 describe("TcgplayerSellerClient", () => {
+  it("reads and validates live seller inventory from marketplace search", async () => {
+    const marketplaceProduct = {
+      productId: 123,
+      productName: "Synthetic Card",
+      productLineName: "Synthetic Game",
+      setName: "Synthetic Set",
+      rarityName: null,
+      marketPrice: 3.5,
+      lowestPrice: 3.25,
+      lowestPriceWithShipping: 4.24,
+      totalListings: 8,
+      listings: [
+        {
+          listingId: 77,
+          productId: 123,
+          productConditionId: 456,
+          conditionId: 2,
+          condition: "Lightly Played",
+          channelId: 0,
+          printing: "Normal",
+          language: "English",
+          languageId: 1,
+          sellerKey: syntheticSellerKey,
+          sellerName: "Synthetic Seller",
+          quantity: 4,
+          price: 3.25,
+          shippingPrice: 0.99,
+          customData: { images: [] },
+        },
+      ],
+    };
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        errors: [],
+        results: [{ totalResults: 1, results: [marketplaceProduct] }],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const products = await client.listSellerInventory({
+      sellerKey: syntheticSellerKey,
+    });
+
+    expect(products).toHaveLength(1);
+    expect(products[0]).toMatchObject({
+      productId: 123,
+      productName: "Synthetic Card",
+      rarityName: "",
+      listings: [
+        {
+          productConditionId: 456,
+          condition: "Lightly Played",
+          price: 3.25,
+        },
+      ],
+    });
+    expect(requests[0]?.url).toBe(
+      "https://mp-search-api.tcgplayer.com/v1/search/request",
+    );
+    expect(JSON.parse(String(requests[0]?.init?.body))).toMatchObject({
+      from: 0,
+      size: 24,
+      listingSearch: {
+        filters: {
+          term: {
+            sellerStatus: "Live",
+            channelId: 0,
+            sellerKey: [syntheticSellerKey],
+          },
+        },
+      },
+    });
+  });
+
+  it("builds condition-aware marketplace comparison searches", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        errors: [],
+        results: [{ totalResults: 0, results: [] }],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await client.searchMarketplaceProducts({
+      productIds: [123],
+      conditions: ["Near Mint", "Lightly Played"],
+      printings: ["Normal"],
+      languages: ["English"],
+    });
+
+    expect(JSON.parse(String(requests[0]?.init?.body))).toMatchObject({
+      filters: { term: { productId: [123] } },
+      listingSearch: {
+        filters: {
+          term: {
+            condition: ["Near Mint", "Lightly Played"],
+            printing: ["Normal"],
+            language: ["English"],
+          },
+        },
+      },
+    });
+  });
+
   it("submits a price-only update using the observed Seller Portal form contract", async () => {
     const { fetchImplementation, requests } = fetchQueue([
       new Response(null, { status: 204 }),

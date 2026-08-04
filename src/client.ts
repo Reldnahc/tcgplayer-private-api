@@ -1,4 +1,5 @@
 import { invalidArgument, TcgplayerApiError } from "./errors.js";
+import { parseMarketplaceProducts } from "./marketplace-validation.js";
 import { SellerApiTransport } from "./transport.js";
 import type {
   AddOrderTrackingInput,
@@ -10,12 +11,16 @@ import type {
   GetPackingSlipInput,
   MarkOrdersShippedInput,
   MarkOrdersShippedResult,
+  ListSellerInventoryInput,
+  MarketplaceProduct,
   OrderFulfillmentMutationResult,
   PackingSlipDocument,
   PullSheetDocument,
   RequestOptions,
   SearchSellerOrdersInput,
   SearchSellerOrdersResult,
+  SearchMarketplaceProductsInput,
+  SearchMarketplaceProductsResult,
   SellerOrderDetail,
   SellerOrderStatusFilter,
   ShipOrderWithoutTrackingInput,
@@ -36,6 +41,7 @@ const PULL_SHEET_PATH = "/orders/pull-sheets/export?api-version=2.0";
 const DETECT_CARRIER_PATH = "/orders/detect-carrier?api-version=2.0";
 const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
 const UPDATE_INVENTORY_PATH = "/admin/product/updateinventory";
+const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
 const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
   "Canceled",
   "Delivered",
@@ -142,6 +148,45 @@ function normalizeOrderNumbers(values: readonly string[]): string[] {
 
 function requestSignal(options: RequestOptions | undefined) {
   return options?.signal;
+}
+
+function uniqueTextValues(
+  name: string,
+  values: readonly string[] | undefined,
+): string[] | undefined {
+  if (values === undefined) return undefined;
+  if (!Array.isArray(values) || values.length === 0 || values.length > 100) {
+    throw invalidArgument(`${name} must contain 1-100 values.`);
+  }
+  const normalized = values.map((value, index) =>
+    requiredText(`${name}[${String(index)}]`, value, 256),
+  );
+  if (new Set(normalized).size !== normalized.length) {
+    throw invalidArgument(`${name} must not contain duplicates.`);
+  }
+  return normalized;
+}
+
+function uniqueProductIds(
+  values: readonly number[] | undefined,
+): number[] | undefined {
+  if (values === undefined) return undefined;
+  if (!Array.isArray(values) || values.length === 0 || values.length > 24) {
+    throw invalidArgument("productIds must contain 1-24 values.");
+  }
+  const normalized = values.map((value, index) =>
+    boundedInteger(
+      `productIds[${String(index)}]`,
+      value,
+      0,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    ),
+  );
+  if (new Set(normalized).size !== normalized.length) {
+    throw invalidArgument("productIds must not contain duplicates.");
+  }
+  return normalized;
 }
 
 function isShippedStatus(status: string): boolean {
@@ -530,6 +575,111 @@ export class TcgplayerSellerClient {
       alreadyShippedOrderNumbers,
       errors: parsed.errors,
     };
+  }
+
+  async searchMarketplaceProducts(
+    input: SearchMarketplaceProductsInput,
+    options?: RequestOptions,
+  ): Promise<SearchMarketplaceProductsResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Marketplace search input is required.");
+    }
+    const productIds = uniqueProductIds(input.productIds);
+    const sellerKey =
+      input.sellerKey === undefined
+        ? undefined
+        : requiredText("sellerKey", input.sellerKey, 256);
+    if (productIds === undefined && sellerKey === undefined) {
+      throw invalidArgument("productIds or sellerKey is required.");
+    }
+    const conditions = uniqueTextValues("conditions", input.conditions);
+    const printings = uniqueTextValues("printings", input.printings);
+    const languages = uniqueTextValues("languages", input.languages);
+    const channelId = boundedInteger(
+      "channelId",
+      input.channelId,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const offset = boundedInteger("offset", input.offset, 0, 0, 1_000_000);
+    const limit = boundedInteger("limit", input.limit, 24, 1, 24);
+
+    const payload = {
+      from: offset,
+      size: limit,
+      ...(productIds === undefined
+        ? {}
+        : { filters: { term: { productId: productIds } } }),
+      listingSearch: {
+        context: { cart: {} },
+        filters: {
+          term: {
+            sellerStatus: "Live",
+            channelId,
+            ...(sellerKey === undefined ? {} : { sellerKey: [sellerKey] }),
+            ...(conditions === undefined ? {} : { condition: conditions }),
+            ...(printings === undefined ? {} : { printing: printings }),
+            ...(languages === undefined ? {} : { language: languages }),
+          },
+          range: { quantity: { gte: 1 } },
+          exclude: { channelExclusion: 0 },
+        },
+      },
+    };
+    return parseMarketplaceProducts(
+      await this.transport.marketplaceJson(
+        MARKETPLACE_SEARCH_PATH,
+        payload,
+        requestSignal(options),
+      ),
+    );
+  }
+
+  async listSellerInventory(
+    input: ListSellerInventoryInput,
+    options?: RequestOptions,
+  ): Promise<readonly MarketplaceProduct[]> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Seller inventory input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const channelId = boundedInteger(
+      "channelId",
+      input.channelId,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const maximumPages = boundedInteger(
+      "maximumPages",
+      input.maximumPages,
+      1000,
+      1,
+      10_000,
+    );
+    const products: MarketplaceProduct[] = [];
+    let expectedTotal = Number.POSITIVE_INFINITY;
+    for (
+      let page = 0;
+      page < maximumPages && products.length < expectedTotal;
+      page += 1
+    ) {
+      const result = await this.searchMarketplaceProducts(
+        { sellerKey, channelId, offset: page * 24, limit: 24 },
+        options,
+      );
+      expectedTotal = result.totalProducts;
+      products.push(...result.products);
+      if (result.products.length === 0) break;
+    }
+    if (products.length < expectedTotal) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        `Seller inventory exceeded maximumPages before all ${String(expectedTotal)} products were read.`,
+      );
+    }
+    return products;
   }
 
   async updateSellerPrices(

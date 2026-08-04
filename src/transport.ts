@@ -11,6 +11,7 @@ import type {
 
 const ORDER_MANAGEMENT_ORIGIN = "https://order-management-api.tcgplayer.com";
 const SELLER_PORTAL_ORIGIN = "https://store.tcgplayer.com";
+const MARKETPLACE_SEARCH_ORIGIN = "https://mp-search-api.tcgplayer.com";
 const DEFAULT_USER_AGENT = "tcgplayer-private-api";
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
@@ -44,7 +45,7 @@ interface RequestSpec {
   readonly path: string;
   readonly body?: unknown;
   readonly bodyFormat?: "json" | "form";
-  readonly origin?: "order-management" | "seller-portal";
+  readonly origin?: "order-management" | "seller-portal" | "marketplace";
   readonly accept: "application/json" | "application/pdf" | "text/csv" | "*/*";
   readonly retryMode: "safe" | "never";
   readonly discardResponseBody?: boolean;
@@ -449,6 +450,45 @@ export class SellerApiTransport {
     }
   }
 
+  async marketplaceJson(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    const result = await this.request({
+      method: "POST",
+      path,
+      body,
+      origin: "marketplace",
+      accept: "application/json",
+      retryMode: "safe",
+      ...(signal === undefined ? {} : { signal }),
+    });
+
+    const { response, bytes } = result;
+    if (
+      result.contentType !== "application/json" &&
+      !result.contentType.endsWith("+json")
+    ) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned an unexpected marketplace search response.",
+        errorOptions(response),
+      );
+    }
+    try {
+      return JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      ) as unknown;
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned malformed marketplace search JSON.",
+        { ...errorOptions(response), cause: error },
+      );
+    }
+  }
+
   async pdf(
     path: string,
     body: unknown,
@@ -708,7 +748,9 @@ export class SellerApiTransport {
         const origin =
           spec.origin === "seller-portal"
             ? SELLER_PORTAL_ORIGIN
-            : ORDER_MANAGEMENT_ORIGIN;
+            : spec.origin === "marketplace"
+              ? MARKETPLACE_SEARCH_ORIGIN
+              : ORDER_MANAGEMENT_ORIGIN;
 
         const response = await this.fetchImplementation(
           new URL(spec.path, origin),
