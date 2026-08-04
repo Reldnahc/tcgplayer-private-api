@@ -51,7 +51,7 @@ If a feature can be expressed without knowledge of TCGplayer's private transport
 - Do not import from or depend on TCGPlayerAlert. Examples may demonstrate integration without coupling package types or defaults to that app.
 - Use semantic versioning. Treat public types, export paths, runtime behavior, and documented error semantics as part of the versioned contract.
 - Before release, validate the exact packed artifact with `npm pack --dry-run`, install its tarball into a clean consumer fixture, and run public API tests there.
-- Local adjacent-repository development may use an npm `file:../package` dependency or packed tarball, but consumers must import only by package name.
+- Local adjacent-repository development may use an npm `file:../tcgplayer-private-api` dependency or packed tarball, but consumers must import only by package name.
 - Keep runtime dependencies minimal and justify each one. Put build, test, and type-only tooling in development dependencies.
 - Include only necessary compiled output, type declarations, documentation, notices, and runtime assets in the published package.
 
