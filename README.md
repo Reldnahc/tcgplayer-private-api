@@ -151,7 +151,7 @@ The method accepts at most 100 distinct product-condition/channel pairs per call
 
 ## Catalog and inventory additions
 
-Use `searchCatalogProducts` to find exact products and `getCatalogProduct` to resolve the supported condition, printing, and language combinations to TCGplayer SKU identifiers. Product names alone are not sufficient to identify a listing.
+Use `searchCatalogProducts` to find exact products and `getCatalogProduct` to resolve the supported condition, printing, and language combinations to TCGplayer SKU identifiers. Search results are ranked by normalized name likeness with exact-name matches first, and both summaries and details include a public product-artwork URL. Product names alone are not sufficient to identify a listing.
 
 `addSellerInventory` is separate from `updateSellerPrices`. Each addition requires a positive relative quantity, the freshly observed current quantity, the complete SKU identity, and an initial price. It submits the quantity and price together so a new card is never briefly exposed at a placeholder price.
 

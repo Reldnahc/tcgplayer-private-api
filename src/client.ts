@@ -2,6 +2,7 @@ import { invalidArgument, TcgplayerApiError } from "./errors.js";
 import {
   parseCatalogProduct,
   parseCatalogSearch,
+  rankCatalogProducts,
 } from "./catalog-validation.js";
 import { parseMarketplaceProducts } from "./marketplace-validation.js";
 import { SellerApiTransport } from "./transport.js";
@@ -830,13 +831,16 @@ export class TcgplayerSellerClient {
       },
       settings: { useFuzzySearch: true, didYouMean: {} },
     };
-    return parseCatalogSearch(
-      await this.transport.marketplaceJson(
-        "POST",
-        MARKETPLACE_SEARCH_PATH,
-        payload,
-        requestSignal(options),
+    return rankCatalogProducts(
+      parseCatalogSearch(
+        await this.transport.marketplaceJson(
+          "POST",
+          MARKETPLACE_SEARCH_PATH,
+          payload,
+          requestSignal(options),
+        ),
       ),
+      query,
     );
   }
 

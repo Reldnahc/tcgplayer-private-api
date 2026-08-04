@@ -165,8 +165,28 @@ describe("TcgplayerSellerClient", () => {
         errors: [],
         results: [
           {
-            totalResults: 1,
+            totalResults: 3,
             results: [
+              {
+                productId: 124,
+                productName: "Synthetic Cardboard",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set B",
+                rarityName: "Common",
+                customAttributes: { number: "43" },
+                marketPrice: 1.5,
+                sellerListable: false,
+              },
+              {
+                productId: 125,
+                productName: "Unrelated Synthetic Item",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set C",
+                rarityName: "Common",
+                customAttributes: { number: "44" },
+                marketPrice: 1,
+                sellerListable: false,
+              },
               {
                 productId: 123,
                 productName: "Synthetic Card",
@@ -191,10 +211,12 @@ describe("TcgplayerSellerClient", () => {
     });
 
     expect(result).toEqual({
-      totalProducts: 1,
+      totalProducts: 3,
       products: [
         {
           productId: 123,
+          imageUrl:
+            "https://product-images.tcgplayer.com/fit-in/200x279/123.jpg",
           productName: "Synthetic Card",
           productLineName: "Synthetic Game",
           setName: "Synthetic Set",
@@ -202,6 +224,30 @@ describe("TcgplayerSellerClient", () => {
           cardNumber: "42",
           marketPrice: 3.5,
           sellerListable: true,
+        },
+        {
+          productId: 124,
+          imageUrl:
+            "https://product-images.tcgplayer.com/fit-in/200x279/124.jpg",
+          productName: "Synthetic Cardboard",
+          productLineName: "Synthetic Game",
+          setName: "Synthetic Set B",
+          rarityName: "Common",
+          cardNumber: "43",
+          marketPrice: 1.5,
+          sellerListable: false,
+        },
+        {
+          productId: 125,
+          imageUrl:
+            "https://product-images.tcgplayer.com/fit-in/200x279/125.jpg",
+          productName: "Unrelated Synthetic Item",
+          productLineName: "Synthetic Game",
+          setName: "Synthetic Set C",
+          rarityName: "Common",
+          cardNumber: "44",
+          marketPrice: 1,
+          sellerListable: false,
         },
       ],
     });
@@ -250,6 +296,9 @@ describe("TcgplayerSellerClient", () => {
         language: "English",
       },
     ]);
+    expect(result.imageUrl).toBe(
+      "https://product-images.tcgplayer.com/fit-in/200x279/123.jpg",
+    );
     expect(requests[0]?.url).toBe(
       "https://mp-search-api.tcgplayer.com/v2/product/123/details",
     );

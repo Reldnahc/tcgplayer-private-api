@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented here.
 
+## 0.4.1 - Unreleased
+
+- Rank catalog search results by normalized name likeness, with exact-name matches first.
+- Include a public TCGplayer product-image URL on catalog summaries and product details.
+
 ## 0.4.0 - Unreleased
 
 - Add validated marketplace catalog search and exact product SKU discovery by condition, printing, and language.

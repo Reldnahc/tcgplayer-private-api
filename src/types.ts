@@ -281,6 +281,8 @@ export interface AddSellerInventoryResult {
 
 export interface CatalogProductSummary {
   readonly productId: number;
+  /** Public TCGplayer product artwork sized for catalog-result thumbnails. */
+  readonly imageUrl: string;
   readonly productName: string;
   readonly productLineName: string;
   readonly setName: string;
