@@ -396,7 +396,7 @@ describe("TcgplayerSellerClient", () => {
       form.get(
         "productQuantityPrices[0][ConditionQuantityPrices][0][Quantity]",
       ),
-    ).toBe("3");
+    ).toBe("5");
     expect(
       form.get("productQuantityPrices[0][ConditionQuantityPrices][0][Price]"),
     ).toBe("4.25");

@@ -224,7 +224,8 @@ interface InventoryFormUpdate {
   readonly conditionId: number;
   readonly channelId: number;
   readonly categoryName: string;
-  readonly currentQuantity: number;
+  /** Absolute post-add quantity, matching Seller Portal's computed newQty. */
+  readonly quantity: number;
   readonly addQuantity: number;
   readonly price: number;
   readonly storePriceCustomId: number | null;
@@ -271,9 +272,9 @@ function buildInventoryUpdateForm(updates: readonly InventoryFormUpdate[]): {
       0,
       Number.MAX_SAFE_INTEGER,
     );
-    const currentQuantity = boundedInteger(
-      `updates[${index}].currentQuantity`,
-      update.currentQuantity,
+    const quantity = boundedInteger(
+      `updates[${index}].quantity`,
+      update.quantity,
       0,
       0,
       10_000_000,
@@ -341,7 +342,7 @@ function buildInventoryUpdateForm(updates: readonly InventoryFormUpdate[]): {
       `${conditionPath}[CategoryName]`,
       requiredText(`updates[${index}].categoryName`, update.categoryName, 256),
     );
-    appendFormValue(form, `${conditionPath}[Quantity]`, currentQuantity);
+    appendFormValue(form, `${conditionPath}[Quantity]`, quantity);
     appendFormValue(form, `${conditionPath}[Price]`, price.toFixed(2));
     appendFormValue(form, `${conditionPath}[ExistingQuantity]`, 0);
     appendFormValue(
@@ -935,7 +936,6 @@ export class TcgplayerSellerClient {
       }
       return {
         ...update,
-        currentQuantity: update.quantity,
         addQuantity: 0,
       };
     });
@@ -989,9 +989,12 @@ export class TcgplayerSellerClient {
         );
       }
     });
-    const { form, productConditionIds } = buildInventoryUpdateForm(
-      input.additions,
-    );
+    const formAdditions = input.additions.map((addition) => ({
+      ...addition,
+      quantity: addition.currentQuantity + addition.addQuantity,
+    }));
+    const { form, productConditionIds } =
+      buildInventoryUpdateForm(formAdditions);
     await this.transport.sellerPortalFormCommand(
       UPDATE_INVENTORY_PATH,
       form,

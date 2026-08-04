@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented here.
 
+## 0.4.2 - Unreleased
+
+- Correct positive inventory additions to submit Seller Portal's absolute post-add quantity alongside the relative add quantity.
+- Preserve the existing absolute quantity for price-only updates.
+
 ## 0.4.1 - Unreleased
 
 - Rank catalog search results by normalized name likeness, with exact-name matches first.
