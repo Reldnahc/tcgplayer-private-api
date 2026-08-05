@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.4.4 - Unreleased
+
+- Optionally enrich catalog searches with English Near Mint Foil market prices through one batched SKU price-point request per search page.
+
 ## 0.4.3 - Unreleased
 
 - Restore catalog name filtering after TCGplayer moved product-name searches to the term-filter array contract.

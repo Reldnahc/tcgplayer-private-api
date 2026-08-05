@@ -205,6 +205,85 @@ export function parseCatalogSearch(
   };
 }
 
+export function parseCatalogFoilSkuIds(
+  value: unknown,
+): ReadonlyMap<number, number> {
+  const source = record(value, "response");
+  if (!Array.isArray(source.results) || source.results.length !== 1) {
+    return invalidResponse("response.results must contain one search result.");
+  }
+  const result = record(source.results[0], "response.results[0]");
+  if (!Array.isArray(result.results)) {
+    return invalidResponse("response.results[0].results must be an array.");
+  }
+  const skuIds = new Map<number, number>();
+  for (const [productIndex, productValue] of result.results.entries()) {
+    const productPath = `response.results[0].results[${String(productIndex)}]`;
+    const product = record(productValue, productPath);
+    const productId = integer(product.productId, `${productPath}.productId`);
+    if (product.listings === undefined || product.listings === null) continue;
+    if (!Array.isArray(product.listings)) {
+      return invalidResponse(`${productPath}.listings must be an array.`);
+    }
+    for (const [listingIndex, listingValue] of product.listings.entries()) {
+      const listingPath = `${productPath}.listings[${String(listingIndex)}]`;
+      const listing = record(listingValue, listingPath);
+      if (
+        listing.printing === "Foil" &&
+        listing.condition === "Near Mint" &&
+        listing.language === "English"
+      ) {
+        skuIds.set(
+          productId,
+          integer(
+            listing.productConditionId,
+            `${listingPath}.productConditionId`,
+          ),
+        );
+        break;
+      }
+    }
+  }
+  return skuIds;
+}
+
+export function parseCatalogSkuMarketPrices(
+  value: unknown,
+): ReadonlyMap<number, number> {
+  if (!Array.isArray(value)) {
+    return invalidResponse("response must be an array of SKU price points.");
+  }
+  const prices = new Map<number, number>();
+  for (const [index, priceValue] of value.entries()) {
+    const path = `response[${String(index)}]`;
+    const price = record(priceValue, path);
+    const skuId = integer(price.skuId, `${path}.skuId`);
+    if (prices.has(skuId)) {
+      return invalidResponse(`${path}.skuId must be unique.`);
+    }
+    prices.set(skuId, finite(price.marketPrice, `${path}.marketPrice`));
+  }
+  return prices;
+}
+
+export function withCatalogFoilMarketPrices(
+  result: SearchCatalogProductsResult,
+  skuIds: ReadonlyMap<number, number>,
+  prices: ReadonlyMap<number, number>,
+): SearchCatalogProductsResult {
+  return {
+    ...result,
+    products: result.products.map((product) => {
+      const skuId = skuIds.get(product.productId);
+      const foilMarketPrice =
+        skuId === undefined ? undefined : prices.get(skuId);
+      return foilMarketPrice === undefined
+        ? product
+        : { ...product, foilMarketPrice };
+    }),
+  };
+}
+
 export function parseCatalogProduct(value: unknown): CatalogProductDetails {
   const source = record(value, "response");
   if (!Array.isArray(source.skus) || source.skus.length === 0) {

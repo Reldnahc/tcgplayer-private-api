@@ -10,6 +10,7 @@ An application cannot safely list a card from its name and condition alone. It m
 ## Decision
 
 - Expose `searchCatalogProducts` and `getCatalogProduct` as validated capability methods instead of raw marketplace URLs.
+- Allow catalog callers to opt into English Near Mint Foil market-price enrichment. Filter the search response's embedded listings to identify matching SKUs and request all price points in one batch, avoiding per-product reads.
 - Normalize only TCGplayer's published condition IDs and fail safely on an unknown condition.
 - Keep `updateSellerPrices` quantity-neutral and expose positive quantity changes only through the separate `addSellerInventory` method.
 - Require a positive relative quantity, freshly observed current quantity, complete SKU identity, initial price, channel, and reserve state.
@@ -20,4 +21,4 @@ An application cannot safely list a card from its name and condition alone. It m
 
 ## Consequences
 
-Consumers own product-selection UX, pricing policy, durable queues, preflight seller-inventory reads, and post-submission reconciliation. A consumer must stop for review when current inventory differs from its queued expectation or when submission outcome is ambiguous.
+Consumers own product-selection UX, pricing policy, durable queues, preflight seller-inventory reads, and post-submission reconciliation. Foil price enrichment is optional because it adds one safe marketplace request per catalog page, and products without a live English Near Mint Foil listing have no enriched price. A consumer must stop for review when current inventory differs from its queued expectation or when submission outcome is ambiguous.

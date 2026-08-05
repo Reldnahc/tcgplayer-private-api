@@ -264,6 +264,92 @@ describe("TcgplayerSellerClient", () => {
     });
   });
 
+  it("enriches catalog results with batched foil market prices", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        errors: [],
+        results: [
+          {
+            totalResults: 2,
+            results: [
+              {
+                productId: 123,
+                productName: "Synthetic Card",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set",
+                rarityName: "Rare",
+                customAttributes: { number: "42" },
+                marketPrice: 3.5,
+                sellerListable: true,
+                listings: [
+                  {
+                    productConditionId: 789,
+                    condition: "Near Mint",
+                    printing: "Foil",
+                    language: "English",
+                  },
+                ],
+              },
+              {
+                productId: 124,
+                productName: "Synthetic Cardboard",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set B",
+                rarityName: "Common",
+                customAttributes: { number: "43" },
+                marketPrice: 1.5,
+                sellerListable: true,
+                listings: [],
+              },
+            ],
+          },
+        ],
+      }),
+      jsonResponse([
+        {
+          skuId: 789,
+          marketPrice: 8.25,
+          lowestPrice: 7,
+          highestPrice: 10,
+          priceCount: 4,
+          calculatedAt: "2026-08-04T00:00:00.000Z",
+        },
+      ]),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.searchCatalogProducts({
+      query: "Synthetic Card",
+      includeFoilMarketPrices: true,
+    });
+
+    expect(result.products).toEqual([
+      expect.objectContaining({
+        productId: 123,
+        marketPrice: 3.5,
+        foilMarketPrice: 8.25,
+      }),
+      expect.objectContaining({
+        productId: 124,
+        marketPrice: 1.5,
+      }),
+    ]);
+    expect(result.products[1]).not.toHaveProperty("foilMarketPrice");
+    expect(
+      JSON.parse(String(requests[0]?.init?.body)).listingSearch.filters.term,
+    ).toMatchObject({
+      condition: ["Near Mint"],
+      printing: ["Foil"],
+      language: ["English"],
+    });
+    expect(requests[1]?.url).toBe(
+      "https://mpgateway.tcgplayer.com/v1/pricepoints/marketprice/skus/search",
+    );
+    expect(JSON.parse(String(requests[1]?.init?.body))).toEqual({
+      skuIds: [789],
+    });
+  });
+
   it("reads a catalog product and maps its SKU conditions", async () => {
     const { fetchImplementation, requests } = fetchQueue([
       jsonResponse({

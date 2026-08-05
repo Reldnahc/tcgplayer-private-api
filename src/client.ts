@@ -1,8 +1,11 @@
 import { invalidArgument, TcgplayerApiError } from "./errors.js";
 import {
+  parseCatalogFoilSkuIds,
   parseCatalogProduct,
   parseCatalogSearch,
+  parseCatalogSkuMarketPrices,
   rankCatalogProducts,
+  withCatalogFoilMarketPrices,
 } from "./catalog-validation.js";
 import { parseMarketplaceProducts } from "./marketplace-validation.js";
 import { SellerApiTransport } from "./transport.js";
@@ -55,6 +58,7 @@ const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
 const UPDATE_INVENTORY_PATH = "/admin/pricing/updateinventory";
 const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
 const MARKETPLACE_PRODUCT_PATH = "/v2/product";
+const MARKETPLACE_SKU_PRICE_PATH = "/v1/pricepoints/marketprice/skus/search";
 const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
   "Canceled",
   "Delivered",
@@ -804,6 +808,13 @@ export class TcgplayerSellerClient {
         : requiredText("productLineName", input.productLineName, 256);
     const offset = boundedInteger("offset", input.offset, 0, 0, 1_000_000);
     const limit = boundedInteger("limit", input.limit, 24, 1, 24);
+    if (
+      input.includeFoilMarketPrices !== undefined &&
+      typeof input.includeFoilMarketPrices !== "boolean"
+    ) {
+      throw invalidArgument("includeFoilMarketPrices must be a boolean.");
+    }
+    const includeFoilMarketPrices = input.includeFoilMarketPrices === true;
     const payload = {
       algorithm: "sales_synonym_v2",
       from: offset,
@@ -819,7 +830,17 @@ export class TcgplayerSellerClient {
       listingSearch: {
         context: { cart: {} },
         filters: {
-          term: { sellerStatus: "Live", channelId: 0 },
+          term: {
+            sellerStatus: "Live",
+            channelId: 0,
+            ...(includeFoilMarketPrices
+              ? {
+                  condition: ["Near Mint"],
+                  printing: ["Foil"],
+                  language: ["English"],
+                }
+              : {}),
+          },
           range: { quantity: { gte: 1 } },
           exclude: { channelExclusion: 0 },
         },
@@ -834,17 +855,29 @@ export class TcgplayerSellerClient {
       },
       settings: { useFuzzySearch: true, didYouMean: {} },
     };
-    return rankCatalogProducts(
-      parseCatalogSearch(
-        await this.transport.marketplaceJson(
-          "POST",
-          MARKETPLACE_SEARCH_PATH,
-          payload,
-          requestSignal(options),
-        ),
-      ),
-      query,
+    const rawResult = await this.transport.marketplaceJson(
+      "POST",
+      MARKETPLACE_SEARCH_PATH,
+      payload,
+      requestSignal(options),
     );
+    let result = parseCatalogSearch(rawResult);
+    if (includeFoilMarketPrices) {
+      const foilSkuIds = parseCatalogFoilSkuIds(rawResult);
+      const requestedSkuIds = [...new Set(foilSkuIds.values())];
+      if (requestedSkuIds.length > 0) {
+        const prices = parseCatalogSkuMarketPrices(
+          await this.transport.marketplaceGatewayJson(
+            "POST",
+            MARKETPLACE_SKU_PRICE_PATH,
+            { skuIds: requestedSkuIds },
+            requestSignal(options),
+          ),
+        );
+        result = withCatalogFoilMarketPrices(result, foilSkuIds, prices);
+      }
+    }
+    return rankCatalogProducts(result, query);
   }
 
   async getCatalogProduct(

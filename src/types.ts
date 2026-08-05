@@ -288,6 +288,8 @@ export interface CatalogProductSummary {
   readonly setName: string;
   readonly rarityName: string;
   readonly cardNumber: string;
+  /** English Near Mint Foil market price when explicitly requested and available. */
+  readonly foilMarketPrice?: number;
   readonly marketPrice: number;
   readonly sellerListable: boolean;
 }
@@ -311,6 +313,8 @@ export interface SearchCatalogProductsInput {
   readonly offset?: number;
   /** TCGplayer's observed maximum page size is 24. */
   readonly limit?: number;
+  /** Adds one batched price-point request for English Near Mint Foil SKUs. */
+  readonly includeFoilMarketPrices?: boolean;
 }
 
 export interface SearchCatalogProductsResult {
