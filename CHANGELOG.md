@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.4.5 - Unreleased
+
+- Accept the non-sequential condition identifiers returned by live TCGplayer listings when submitting price and inventory updates.
+
 ## 0.4.4 - Unreleased
 
 - Optionally enrich catalog searches with English Near Mint Foil market prices through one batched SKU price-point request per search page.

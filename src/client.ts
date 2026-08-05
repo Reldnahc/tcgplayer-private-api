@@ -267,7 +267,7 @@ function buildInventoryUpdateForm(updates: readonly InventoryFormUpdate[]): {
       update.conditionId,
       0,
       1,
-      6,
+      Number.MAX_SAFE_INTEGER,
     );
     const channelId = boundedInteger(
       `updates[${index}].channelId`,

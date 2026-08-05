@@ -453,6 +453,37 @@ describe("TcgplayerSellerClient", () => {
     });
   });
 
+  it("accepts TCGplayer condition ids outside the base condition scale", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await client.updateSellerPrices({
+      updates: [
+        {
+          productId: 668200,
+          productName: "Synthetic Variant Card",
+          productConditionId: 9044848,
+          conditionId: 607,
+          channelId: 0,
+          categoryName: "Synthetic Game",
+          quantity: 3,
+          price: 15.99,
+          storePriceCustomId: null,
+          reserveQuantity: 0,
+        },
+      ],
+    });
+
+    const form = new URLSearchParams(String(requests[0]?.init?.body));
+    expect(
+      form.get(
+        "productQuantityPrices[0][ConditionQuantityPrices][0][ConditionId]",
+      ),
+    ).toBe("607");
+  });
+
   it("adds live inventory with a relative quantity and initial price", async () => {
     const { fetchImplementation, requests } = fetchQueue([
       new Response(null, { status: 204 }),
