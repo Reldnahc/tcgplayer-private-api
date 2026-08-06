@@ -312,6 +312,11 @@ export interface CatalogSetFacet {
   readonly count: number;
 }
 
+export interface CatalogProductLineFacet {
+  readonly name: string;
+  readonly count: number;
+}
+
 export interface SearchCatalogProductsInput {
   readonly query: string;
   readonly productLineName?: string;
@@ -326,6 +331,7 @@ export interface SearchCatalogProductsInput {
 
 export interface SearchCatalogProductsResult {
   readonly totalProducts: number;
+  readonly productLines: readonly CatalogProductLineFacet[];
   readonly sets: readonly CatalogSetFacet[];
   readonly products: readonly CatalogProductSummary[];
 }

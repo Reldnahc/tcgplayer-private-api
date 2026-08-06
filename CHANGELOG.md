@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.4.7 - Unreleased
+
+- Expose validated product-line facets alongside set facets in catalog search results.
+
 ## 0.4.6 - Unreleased
 
 - Send catalog search text through TCGplayer's marketplace `q` parameter so numbered and artwork-specific name variants remain discoverable.

@@ -13,6 +13,7 @@ export type {
   AddSellerInventoryResult,
   AddOrderTrackingInput,
   CatalogProductDetails,
+  CatalogProductLineFacet,
   CatalogProductSku,
   CatalogProductSummary,
   CatalogSetFacet,

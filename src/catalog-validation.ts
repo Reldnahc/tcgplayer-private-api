@@ -1,6 +1,7 @@
 import { TcgplayerApiError } from "./errors.js";
 import type {
   CatalogProductDetails,
+  CatalogProductLineFacet,
   CatalogProductSku,
   CatalogProductSummary,
   CatalogSetFacet,
@@ -199,11 +200,25 @@ export function parseCatalogSearch(
     result.aggregations,
     "response.results[0].aggregations",
   );
+  if (!Array.isArray(aggregations.productLineName)) {
+    return invalidResponse(
+      "response.results[0].aggregations.productLineName must be an array.",
+    );
+  }
   if (!Array.isArray(aggregations.setName)) {
     return invalidResponse(
       "response.results[0].aggregations.setName must be an array.",
     );
   }
+  const productLines: CatalogProductLineFacet[] =
+    aggregations.productLineName.map((value, index) => {
+      const path = `response.results[0].aggregations.productLineName[${String(index)}]`;
+      const facet = record(value, path);
+      return {
+        name: text(facet.value, `${path}.value`),
+        count: integer(facet.count, `${path}.count`),
+      };
+    });
   const sets: CatalogSetFacet[] = aggregations.setName.map((value, index) => {
     const path = `response.results[0].aggregations.setName[${String(index)}]`;
     const facet = record(value, path);
@@ -217,6 +232,7 @@ export function parseCatalogSearch(
       result.totalResults,
       "response.results[0].totalResults",
     ),
+    productLines,
     sets,
     products: result.results.map((product, index) =>
       summary(product, `response.results[0].results[${String(index)}]`),

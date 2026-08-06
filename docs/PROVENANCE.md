@@ -55,7 +55,7 @@ Anonymous read-only compatibility observations on 2026-08-04 confirmed product-n
 
 An anonymous read-only compatibility observation on 2026-08-04 confirmed that filtering embedded catalog listings to English, Near Mint, and Foil leaves the product search result set intact while exposing matching product-condition SKU identifiers where live listings exist. One batched request to the marketplace gateway returned market price points for those SKU identifiers. Only endpoint shape and aggregate behavior were retained.
 
-Anonymous read-only observations on 2026-08-05 confirmed that marketplace catalog text belongs in the `q` query parameter and that `setName` aggregations can enumerate set choices without retrieving every candidate. Set term filters sharply bounded large basic-land searches. Only aggregate counts and response shape were inspected; no listing identifiers or credentials were retained.
+Anonymous read-only observations on 2026-08-05 confirmed that marketplace catalog text belongs in the `q` query parameter and that `productLineName` and `setName` aggregations can enumerate filter choices without retrieving every candidate. Set term filters sharply bounded large basic-land searches. Only aggregate counts and response shape were inspected; no listing identifiers or credentials were retained.
 
 A controlled live compatibility check on 2026-08-04 resubmitted one eligible listing's current price and current quantity through the corrected bulk-Pricing contract. Seller Portal accepted the no-op save; no price, quantity, listing identifiers, or credentials were retained.
 

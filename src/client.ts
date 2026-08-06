@@ -867,7 +867,7 @@ export class TcgplayerSellerClient {
         },
       },
       settings: { useFuzzySearch: true, didYouMean: {} },
-      aggregations: ["setName"],
+      aggregations: ["productLineName", "setName"],
       sort: {},
     };
     const searchParameters = new URLSearchParams({

@@ -167,6 +167,7 @@ describe("TcgplayerSellerClient", () => {
           {
             totalResults: 3,
             aggregations: {
+              productLineName: [{ value: "Synthetic Game", count: 3 }],
               setName: [
                 { value: "Synthetic Set", count: 1 },
                 { value: "Synthetic Set B", count: 1 },
@@ -221,6 +222,7 @@ describe("TcgplayerSellerClient", () => {
 
     expect(result).toEqual({
       totalProducts: 3,
+      productLines: [{ name: "Synthetic Game", count: 3 }],
       sets: [
         { name: "Synthetic Set", count: 1 },
         { name: "Synthetic Set B", count: 1 },
@@ -283,6 +285,7 @@ describe("TcgplayerSellerClient", () => {
       "https://mp-search-api.tcgplayer.com/v1/search/request?q=Synthetic+Card&isList=false",
     );
     expect(JSON.parse(String(requests[0]?.init?.body)).aggregations).toEqual([
+      "productLineName",
       "setName",
     ]);
   });
@@ -295,6 +298,7 @@ describe("TcgplayerSellerClient", () => {
           {
             totalResults: 2,
             aggregations: {
+              productLineName: [{ value: "Synthetic Game", count: 2 }],
               setName: [
                 { value: "Synthetic Set", count: 1 },
                 { value: "Synthetic Set B", count: 1 },
