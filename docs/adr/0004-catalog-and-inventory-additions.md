@@ -10,6 +10,7 @@ An application cannot safely list a card from its name and condition alone. It m
 ## Decision
 
 - Expose `searchCatalogProducts` and `getCatalogProduct` as validated capability methods instead of raw marketplace URLs.
+- Use the marketplace text-query contract and expose set facets plus optional set/product-type filters so consumers can narrow large name families without exhaustively paging them.
 - Allow catalog callers to opt into English Near Mint Foil market-price enrichment. Filter the search response's embedded listings to identify matching SKUs and request all price points in one batch, avoiding per-product reads.
 - Normalize only TCGplayer's published condition IDs and fail safely on an unknown condition.
 - Keep `updateSellerPrices` quantity-neutral and expose positive quantity changes only through the separate `addSellerInventory` method.

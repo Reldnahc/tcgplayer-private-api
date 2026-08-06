@@ -151,13 +151,15 @@ The method accepts at most 100 distinct product-condition/channel pairs per call
 
 ## Catalog and inventory additions
 
-Use `searchCatalogProducts` to find exact products and `getCatalogProduct` to resolve the supported condition, printing, and language combinations to TCGplayer SKU identifiers. Search results are ranked by normalized name likeness with exact-name matches first, and both summaries and details include a public product-artwork URL. Product names alone are not sufficient to identify a listing.
+Use `searchCatalogProducts` to find exact products and `getCatalogProduct` to resolve the supported condition, printing, and language combinations to TCGplayer SKU identifiers. Search text uses TCGplayer's marketplace query contract rather than an exact product-name term filter, so numbered and artwork-specific variants remain discoverable. Results include set facets and may be narrowed with `setName`, `productLineName`, and `productTypeName`. Search results are ranked by normalized name likeness with exact-name matches first, and both summaries and details include a public product-artwork URL. Product names alone are not sufficient to identify a listing.
 
 Set `includeFoilMarketPrices: true` when search results need an English Near Mint Foil market price. The search filters only its embedded listings to identify one matching Foil SKU per product, then submits all discovered SKU IDs in one batched price-point request. Products without a live matching listing omit `foilMarketPrice`; the client never makes one price request per product.
 
 ```ts
 const search = await client.searchCatalogProducts({
   query: "Synthetic Card",
+  productTypeName: "Cards",
+  setName: "Synthetic Set",
   includeFoilMarketPrices: true,
 });
 ```

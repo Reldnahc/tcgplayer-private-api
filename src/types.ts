@@ -307,9 +307,16 @@ export interface CatalogProductDetails extends CatalogProductSummary {
   readonly skus: readonly CatalogProductSku[];
 }
 
+export interface CatalogSetFacet {
+  readonly name: string;
+  readonly count: number;
+}
+
 export interface SearchCatalogProductsInput {
   readonly query: string;
   readonly productLineName?: string;
+  readonly productTypeName?: string;
+  readonly setName?: string;
   readonly offset?: number;
   /** TCGplayer's observed maximum page size is 24. */
   readonly limit?: number;
@@ -319,6 +326,7 @@ export interface SearchCatalogProductsInput {
 
 export interface SearchCatalogProductsResult {
   readonly totalProducts: number;
+  readonly sets: readonly CatalogSetFacet[];
   readonly products: readonly CatalogProductSummary[];
 }
 

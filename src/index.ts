@@ -15,6 +15,7 @@ export type {
   CatalogProductDetails,
   CatalogProductSku,
   CatalogProductSummary,
+  CatalogSetFacet,
   ConfirmedSellerOrder,
   ConfirmSellerOrderInput,
   DetectCarrierResult,

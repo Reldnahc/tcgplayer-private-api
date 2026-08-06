@@ -166,6 +166,13 @@ describe("TcgplayerSellerClient", () => {
         results: [
           {
             totalResults: 3,
+            aggregations: {
+              setName: [
+                { value: "Synthetic Set", count: 1 },
+                { value: "Synthetic Set B", count: 1 },
+                { value: "Synthetic Set C", count: 1 },
+              ],
+            },
             results: [
               {
                 productId: 124,
@@ -207,11 +214,18 @@ describe("TcgplayerSellerClient", () => {
     const result = await client.searchCatalogProducts({
       query: "Synthetic Card",
       productLineName: "Synthetic Game",
+      productTypeName: "Cards",
+      setName: "Synthetic Set",
       limit: 12,
     });
 
     expect(result).toEqual({
       totalProducts: 3,
+      sets: [
+        { name: "Synthetic Set", count: 1 },
+        { name: "Synthetic Set B", count: 1 },
+        { name: "Synthetic Set C", count: 1 },
+      ],
       products: [
         {
           productId: 123,
@@ -258,10 +272,19 @@ describe("TcgplayerSellerClient", () => {
     });
     expect(JSON.parse(String(requests[0]?.init?.body)).filters).toStrictEqual({
       term: {
-        productName: ["Synthetic Card"],
         productLineName: ["Synthetic Game"],
+        productTypeName: ["Cards"],
+        setName: ["Synthetic Set"],
       },
+      range: {},
+      match: {},
     });
+    expect(requests[0]?.url).toBe(
+      "https://mp-search-api.tcgplayer.com/v1/search/request?q=Synthetic+Card&isList=false",
+    );
+    expect(JSON.parse(String(requests[0]?.init?.body)).aggregations).toEqual([
+      "setName",
+    ]);
   });
 
   it("enriches catalog results with batched foil market prices", async () => {
@@ -271,6 +294,12 @@ describe("TcgplayerSellerClient", () => {
         results: [
           {
             totalResults: 2,
+            aggregations: {
+              setName: [
+                { value: "Synthetic Set", count: 1 },
+                { value: "Synthetic Set B", count: 1 },
+              ],
+            },
             results: [
               {
                 productId: 123,

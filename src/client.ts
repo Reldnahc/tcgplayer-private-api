@@ -806,6 +806,14 @@ export class TcgplayerSellerClient {
       input.productLineName === undefined
         ? undefined
         : requiredText("productLineName", input.productLineName, 256);
+    const productTypeName =
+      input.productTypeName === undefined
+        ? undefined
+        : requiredText("productTypeName", input.productTypeName, 256);
+    const setName =
+      input.setName === undefined
+        ? undefined
+        : requiredText("setName", input.setName, 256);
     const offset = boundedInteger("offset", input.offset, 0, 0, 1_000_000);
     const limit = boundedInteger("limit", input.limit, 24, 1, 24);
     if (
@@ -821,11 +829,16 @@ export class TcgplayerSellerClient {
       size: limit,
       filters: {
         term: {
-          productName: [query],
           ...(productLineName === undefined
             ? {}
             : { productLineName: [productLineName] }),
+          ...(productTypeName === undefined
+            ? {}
+            : { productTypeName: [productTypeName] }),
+          ...(setName === undefined ? {} : { setName: [setName] }),
         },
+        range: {},
+        match: {},
       },
       listingSearch: {
         context: { cart: {} },
@@ -854,10 +867,16 @@ export class TcgplayerSellerClient {
         },
       },
       settings: { useFuzzySearch: true, didYouMean: {} },
+      aggregations: ["setName"],
+      sort: {},
     };
+    const searchParameters = new URLSearchParams({
+      q: query,
+      isList: "false",
+    });
     const rawResult = await this.transport.marketplaceJson(
       "POST",
-      MARKETPLACE_SEARCH_PATH,
+      `${MARKETPLACE_SEARCH_PATH}?${searchParameters.toString()}`,
       payload,
       requestSignal(options),
     );

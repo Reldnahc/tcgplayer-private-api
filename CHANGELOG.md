@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented here.
 
+## 0.4.6 - Unreleased
+
+- Send catalog search text through TCGplayer's marketplace `q` parameter so numbered and artwork-specific name variants remain discoverable.
+- Expose validated set facets and optional set/product-type filters for bounded catalog searches.
+
 ## 0.4.5 - Unreleased
 
 - Accept the non-sequential condition identifiers returned by live TCGplayer listings when submitting price and inventory updates.

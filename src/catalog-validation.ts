@@ -3,6 +3,7 @@ import type {
   CatalogProductDetails,
   CatalogProductSku,
   CatalogProductSummary,
+  CatalogSetFacet,
   SearchCatalogProductsResult,
 } from "./types.js";
 
@@ -194,11 +195,29 @@ export function parseCatalogSearch(
   if (!Array.isArray(result.results)) {
     return invalidResponse("response.results[0].results must be an array.");
   }
+  const aggregations = record(
+    result.aggregations,
+    "response.results[0].aggregations",
+  );
+  if (!Array.isArray(aggregations.setName)) {
+    return invalidResponse(
+      "response.results[0].aggregations.setName must be an array.",
+    );
+  }
+  const sets: CatalogSetFacet[] = aggregations.setName.map((value, index) => {
+    const path = `response.results[0].aggregations.setName[${String(index)}]`;
+    const facet = record(value, path);
+    return {
+      name: text(facet.value, `${path}.value`),
+      count: integer(facet.count, `${path}.count`),
+    };
+  });
   return {
     totalProducts: integer(
       result.totalResults,
       "response.results[0].totalResults",
     ),
+    sets,
     products: result.results.map((product, index) =>
       summary(product, `response.results[0].results[${String(index)}]`),
     ),
