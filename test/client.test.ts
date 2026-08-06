@@ -82,6 +82,7 @@ describe("TcgplayerSellerClient", () => {
           quantity: 4,
           price: 3.25,
           shippingPrice: 0.99,
+          directListing: false,
           customData: { images: [] },
         },
       ],
@@ -108,6 +109,7 @@ describe("TcgplayerSellerClient", () => {
           productConditionId: 456,
           condition: "Lightly Played",
           price: 3.25,
+          directListing: false,
         },
       ],
     });

@@ -54,6 +54,14 @@ function optionalText(value: unknown, path: string): string {
   return value === undefined || value === null ? "" : text(value, path, true);
 }
 
+function optionalBoolean(value: unknown, path: string): boolean | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "boolean") {
+    return invalidResponse(`${path} must be a boolean.`);
+  }
+  return value;
+}
+
 function parseListing(value: unknown, path: string): MarketplaceListing {
   const source = record(value, path);
   const customDataSource =
@@ -68,6 +76,10 @@ function parseListing(value: unknown, path: string): MarketplaceListing {
           customDataSource.customListingId,
           `${path}.customData.customListingId`,
         );
+  const directListing = optionalBoolean(
+    source.directListing,
+    `${path}.directListing`,
+  );
 
   return {
     listingId: integer(source.listingId, `${path}.listingId`),
@@ -87,6 +99,7 @@ function parseListing(value: unknown, path: string): MarketplaceListing {
     quantity: integer(source.quantity, `${path}.quantity`),
     price: finite(source.price, `${path}.price`),
     shippingPrice: finite(source.shippingPrice, `${path}.shippingPrice`),
+    ...(directListing === undefined ? {} : { directListing }),
     customData: {
       ...(customListingId === undefined ? {} : { customListingId }),
     },

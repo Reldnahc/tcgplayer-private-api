@@ -125,7 +125,7 @@ Mutations are never automatically retried. A timeout, lost connection, server er
 
 ## Price updates
 
-Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve current comparison listings by product, condition, printing, and language. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, and whether to raise or lower a price.
+Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve current comparison records by product, condition, printing, and language. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, and whether to raise or lower a price. For channel 1, `channelId` alone does not prove that a record is customer-buyable through Direct. Consumers using Direct comparisons must require `directListing === true`; a missing or false flag is ineligible.
 
 `updateSellerPrices` reproduces Seller Portal's live bulk-Pricing price update. Each update deliberately requires the listing's current quantity, reserve quantity, channel, and identifiers; the method always sends an add-to-quantity value of zero and explicitly targets live rather than staged inventory. This prevents a price update from silently inventing or clearing inventory state.
 

@@ -388,6 +388,11 @@ export interface MarketplaceListing {
   readonly quantity: number;
   readonly price: number;
   readonly shippingPrice: number;
+  /**
+   * TCGplayer's explicit Direct-buyability flag when present. A channelId of 1
+   * alone does not establish that this record is a customer-visible Direct offer.
+   */
+  readonly directListing?: boolean;
   readonly customData: MarketplaceListingCustomData;
 }
 

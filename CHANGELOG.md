@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.5.1 - Unreleased
+
+- Preserve the marketplace response's optional `directListing` eligibility flag. Consumers must not infer customer-visible Direct eligibility from `channelId` alone.
+
 ## 0.5.0 - Unreleased
 
 - Add an explicit exact-SKU inventory-removal method that clears a freshly observed, unreserved live quantity without weakening price-only or positive-addition contracts.
