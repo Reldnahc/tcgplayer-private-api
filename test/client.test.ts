@@ -580,6 +580,75 @@ describe("TcgplayerSellerClient", () => {
     expect(requests).toHaveLength(0);
   });
 
+  it("clears an exact live inventory SKU while preserving its price identity", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.removeSellerInventory({
+      removals: [
+        {
+          productId: 123,
+          productName: "Synthetic Card",
+          productConditionId: 456,
+          conditionId: 2,
+          channelId: 0,
+          categoryName: "Synthetic Game",
+          currentQuantity: 3,
+          price: 4.25,
+          storePriceCustomId: null,
+          reserveQuantity: 0,
+        },
+      ],
+    });
+
+    expect(result).toEqual({ submittedProductConditionIds: [456] });
+    const form = new URLSearchParams(String(requests[0]?.init?.body));
+    expect(form.get("productQuantityPrices[0][AddToQuantity]")).toBe("0");
+    expect(
+      form.get(
+        "productQuantityPrices[0][ConditionQuantityPrices][0][Quantity]",
+      ),
+    ).toBe("0");
+    expect(
+      form.get("productQuantityPrices[0][ConditionQuantityPrices][0][Price]"),
+    ).toBe("4.25");
+  });
+
+  it("rejects an inventory removal without live unreserved quantity", async () => {
+    const { fetchImplementation, requests } = fetchQueue([]);
+    const client = clientWith(fetchImplementation);
+    const removal = {
+      productId: 123,
+      productName: "Synthetic Card",
+      productConditionId: 456,
+      conditionId: 2,
+      channelId: 0,
+      categoryName: "Synthetic Game",
+      currentQuantity: 0,
+      price: 4.25,
+      storePriceCustomId: null,
+      reserveQuantity: 0,
+    };
+
+    await expect(
+      client.removeSellerInventory({ removals: [removal] }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    await expect(
+      client.removeSellerInventory({
+        removals: [
+          {
+            ...removal,
+            currentQuantity: 3,
+            reserveQuantity: 1,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    expect(requests).toHaveLength(0);
+  });
+
   it("rejects unsafe price updates before sending a request", async () => {
     const { fetchImplementation, requests } = fetchQueue([]);
     const client = clientWith(fetchImplementation);

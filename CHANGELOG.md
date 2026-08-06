@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.5.0 - Unreleased
+
+- Add an explicit exact-SKU inventory-removal method that clears a freshly observed, unreserved live quantity without weakening price-only or positive-addition contracts.
+
 ## 0.4.7 - Unreleased
 
 - Expose validated product-line facets alongside set facets in catalog search results.

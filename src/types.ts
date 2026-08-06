@@ -279,6 +279,33 @@ export interface AddSellerInventoryResult {
   readonly submittedProductConditionIds: readonly number[];
 }
 
+/**
+ * A complete live listing snapshot used to clear one exact SKU. The caller
+ * must re-read currentQuantity immediately before applying the mutation.
+ * Removal is intentionally unavailable for reserved inventory.
+ */
+export interface SellerInventoryRemoval {
+  readonly productId: number;
+  readonly productName: string;
+  /** Seller Portal calls this ProductConditionId; it is the listing SKU id. */
+  readonly productConditionId: number;
+  readonly conditionId: number;
+  readonly channelId: number;
+  readonly categoryName: string;
+  readonly currentQuantity: number;
+  readonly price: number;
+  readonly storePriceCustomId: number | null;
+  readonly reserveQuantity: number;
+}
+
+export interface RemoveSellerInventoryInput {
+  readonly removals: readonly SellerInventoryRemoval[];
+}
+
+export interface RemoveSellerInventoryResult {
+  readonly submittedProductConditionIds: readonly number[];
+}
+
 export interface CatalogProductSummary {
   readonly productId: number;
   /** Public TCGplayer product artwork sized for catalog-result thumbnails. */

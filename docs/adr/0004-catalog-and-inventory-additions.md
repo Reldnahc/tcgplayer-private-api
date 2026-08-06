@@ -1,4 +1,4 @@
-# ADR 0004: Catalog discovery and positive inventory additions
+# ADR 0004: Catalog discovery and explicit inventory quantity changes
 
 - Status: Accepted
 - Date: 2026-08-04
@@ -16,10 +16,11 @@ An application cannot safely list a card from its name and condition alone. It m
 - Keep `updateSellerPrices` quantity-neutral and expose positive quantity changes only through the separate `addSellerInventory` method.
 - Require a positive relative quantity, freshly observed current quantity, complete SKU identity, initial price, channel, and reserve state.
 - Submit the relative quantity, absolute post-add quantity, and price in one live-inventory request. Seller Portal computes that absolute quantity as current quantity plus the relative addition.
+- Expose exact-SKU removal separately through `removeSellerInventory`. Require a freshly observed positive quantity and zero reserve quantity, preserve the listing identity and price, and submit an absolute quantity of zero with no relative addition.
 - Validate the entire batch before submission, allow at most 100 unique SKU/channel pairs, and never retry automatically.
 - Treat timeouts, disconnects, server errors, and aborts after submission begins as `AMBIGUOUS_RESULT`.
-- Cover catalog reads and inventory additions with sanitized synthetic contract tests. Live additions require a deliberately selected card and operator supervision.
+- Cover catalog reads, additions, and removals with sanitized synthetic contract tests. Live quantity mutations require a deliberately selected card and operator supervision.
 
 ## Consequences
 
-Consumers own product-selection UX, pricing policy, durable queues, preflight seller-inventory reads, and post-submission reconciliation. Foil price enrichment is optional because it adds one safe marketplace request per catalog page, and products without a live English Near Mint Foil listing have no enriched price. A consumer must stop for review when current inventory differs from its queued expectation or when submission outcome is ambiguous.
+Consumers own product-selection UX, pricing policy, durable queues, preflight seller-inventory reads, and post-submission reconciliation. Foil price enrichment is optional because it adds one safe marketplace request per catalog page, and products without a live English Near Mint Foil listing have no enriched price. A consumer must stop for review when current inventory differs from its queued expectation, reserve inventory is present during removal, or a submission outcome is ambiguous.

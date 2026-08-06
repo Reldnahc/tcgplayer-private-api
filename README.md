@@ -95,6 +95,7 @@ const packingSlip = await client.getPackingSlip({
 - `listSellerInventory(input, options?)`
 - `updateSellerPrices(input, options?)`
 - `addSellerInventory(input, options?)`
+- `removeSellerInventory(input, options?)`
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
 
@@ -187,6 +188,27 @@ await client.addSellerInventory({
       categoryName: details.productLineName,
       currentQuantity: 0,
       addQuantity: 1,
+      price: 4.25,
+      storePriceCustomId: null,
+      reserveQuantity: 0,
+    },
+  ],
+});
+```
+
+`removeSellerInventory` clears an exact live SKU by submitting an absolute quantity of zero. It requires a freshly observed positive quantity, the existing price and identifiers, and zero reserve quantity. Consumers must re-read the listing immediately before submission and stop for review if its quantity or secondary inventory changed.
+
+```ts
+await client.removeSellerInventory({
+  removals: [
+    {
+      productId: 123,
+      productName: "Example card",
+      productConditionId: 456,
+      conditionId: 1,
+      channelId: 0,
+      categoryName: "Magic: The Gathering",
+      currentQuantity: 2,
       price: 4.25,
       storePriceCustomId: null,
       reserveQuantity: 0,

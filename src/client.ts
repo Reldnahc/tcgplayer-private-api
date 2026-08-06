@@ -29,6 +29,8 @@ import type {
   PackingSlipDocument,
   PullSheetDocument,
   RequestOptions,
+  RemoveSellerInventoryInput,
+  RemoveSellerInventoryResult,
   SearchSellerOrdersInput,
   SearchSellerOrdersResult,
   SearchMarketplaceProductsInput,
@@ -36,6 +38,7 @@ import type {
   SearchCatalogProductsInput,
   SearchCatalogProductsResult,
   SellerInventoryAddition,
+  SellerInventoryRemoval,
   SellerOrderDetail,
   SellerOrderStatusFilter,
   ShipOrderWithoutTrackingInput,
@@ -1049,6 +1052,52 @@ export class TcgplayerSellerClient {
     }));
     const { form, productConditionIds } =
       buildInventoryUpdateForm(formAdditions);
+    await this.transport.sellerPortalFormCommand(
+      UPDATE_INVENTORY_PATH,
+      form,
+      requestSignal(options),
+    );
+    return { submittedProductConditionIds: productConditionIds };
+  }
+
+  async removeSellerInventory(
+    input: RemoveSellerInventoryInput,
+    options?: RequestOptions,
+  ): Promise<RemoveSellerInventoryResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Inventory-removal input is required.");
+    }
+    if (
+      !Array.isArray(input.removals) ||
+      input.removals.length === 0 ||
+      input.removals.length > 100
+    ) {
+      throw invalidArgument("removals must contain 1-100 inventory removals.");
+    }
+    input.removals.forEach((removal: SellerInventoryRemoval, index) => {
+      if (typeof removal !== "object" || removal === null) {
+        throw invalidArgument(`removals[${index}] must be an object.`);
+      }
+      boundedInteger(
+        `removals[${index}].currentQuantity`,
+        removal.currentQuantity,
+        0,
+        1,
+        10_000_000,
+      );
+      if (removal.reserveQuantity !== 0) {
+        throw invalidArgument(
+          `removals[${index}].reserveQuantity must be zero.`,
+        );
+      }
+    });
+    const formRemovals = input.removals.map((removal) => ({
+      ...removal,
+      addQuantity: 0,
+      quantity: 0,
+    }));
+    const { form, productConditionIds } =
+      buildInventoryUpdateForm(formRemovals);
     await this.transport.sellerPortalFormCommand(
       UPDATE_INVENTORY_PATH,
       form,
