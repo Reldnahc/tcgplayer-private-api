@@ -389,10 +389,20 @@ export interface MarketplaceListing {
   readonly price: number;
   readonly shippingPrice: number;
   /**
-   * TCGplayer's explicit Direct-buyability flag when present. A channelId of 1
-   * alone does not establish that this record is a customer-visible Direct offer.
+   * TCGplayer's computed Direct-listing flag when present. It must be combined
+   * with the availability evidence below before treating the offer as buyable.
    */
   readonly directListing?: boolean;
+  /** Authentication Center inventory reported for this exact product-condition. */
+  readonly directInventory?: number;
+  /** Whether TCGplayer currently treats the product as Direct-capable. */
+  readonly directProduct?: boolean;
+  /** Whether this seller currently participates in Direct. */
+  readonly directSeller?: boolean;
+  /** Observed marketplace listing classification, such as `standard`. */
+  readonly listingType?: string;
+  /** Seller-program flags used by TCGplayer's buyer-facing marketplace ranking. */
+  readonly sellerPrograms?: readonly string[];
   readonly customData: MarketplaceListingCustomData;
 }
 

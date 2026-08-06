@@ -62,6 +62,21 @@ function optionalBoolean(value: unknown, path: string): boolean | undefined {
   return value;
 }
 
+function optionalString(value: unknown, path: string): string | undefined {
+  return value === undefined || value === null ? undefined : text(value, path);
+}
+
+function optionalStringArray(
+  value: unknown,
+  path: string,
+): readonly string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.length > 128) {
+    return invalidResponse(`${path} must be an array of at most 128 strings.`);
+  }
+  return value.map((item, index) => text(item, `${path}[${String(index)}]`));
+}
+
 function parseListing(value: unknown, path: string): MarketplaceListing {
   const source = record(value, path);
   const customDataSource =
@@ -79,6 +94,26 @@ function parseListing(value: unknown, path: string): MarketplaceListing {
   const directListing = optionalBoolean(
     source.directListing,
     `${path}.directListing`,
+  );
+  const directInventory = optionalFinite(
+    source.directInventory,
+    `${path}.directInventory`,
+  );
+  if (directInventory !== undefined && !Number.isSafeInteger(directInventory)) {
+    return invalidResponse(`${path}.directInventory must be a safe integer.`);
+  }
+  const directProduct = optionalBoolean(
+    source.directProduct,
+    `${path}.directProduct`,
+  );
+  const directSeller = optionalBoolean(
+    source.directSeller,
+    `${path}.directSeller`,
+  );
+  const listingType = optionalString(source.listingType, `${path}.listingType`);
+  const sellerPrograms = optionalStringArray(
+    source.sellerPrograms,
+    `${path}.sellerPrograms`,
   );
 
   return {
@@ -100,6 +135,11 @@ function parseListing(value: unknown, path: string): MarketplaceListing {
     price: finite(source.price, `${path}.price`),
     shippingPrice: finite(source.shippingPrice, `${path}.shippingPrice`),
     ...(directListing === undefined ? {} : { directListing }),
+    ...(directInventory === undefined ? {} : { directInventory }),
+    ...(directProduct === undefined ? {} : { directProduct }),
+    ...(directSeller === undefined ? {} : { directSeller }),
+    ...(listingType === undefined ? {} : { listingType }),
+    ...(sellerPrograms === undefined ? {} : { sellerPrograms }),
     customData: {
       ...(customListingId === undefined ? {} : { customListingId }),
     },

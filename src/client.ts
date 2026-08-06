@@ -786,6 +786,14 @@ export class TcgplayerSellerClient {
           exclude: { channelExclusion: 0 },
         },
       },
+      context: {
+        cart: {},
+        shippingCountry: "US",
+        userProfile: {
+          productLineAffinity: "",
+          priceAffinity: 0,
+        },
+      },
     };
     return parseMarketplaceProducts(
       await this.transport.marketplaceJson(

@@ -59,6 +59,8 @@ Anonymous read-only observations on 2026-08-05 confirmed that marketplace catalo
 
 An anonymous read-only exact-condition observation on 2026-08-06 confirmed that a channel-1 search can return standard seller records explicitly marked `directListing: false`. Therefore `channelId: 1` is not sufficient evidence that a record is a customer-visible Direct offer. The package preserves the optional eligibility flag so consumers can fail closed. No seller identity, listing identifier, or price was retained.
 
+Anonymous read-only comparison observations on 2026-08-06 confirmed that channel-1 records also carry Direct product eligibility, seller eligibility, Authentication Center inventory, listing classification, and seller-program flags. A record that ranked as Direct under explicit U.S. buyer context simultaneously reported `directListing`, `directProduct`, and `directSeller` as true, positive `directInventory`, the `standard` listing type, and the `DirectViewable` seller program. Records missing seller eligibility or Authentication Center inventory remained in the raw channel response but were not marked as Direct listings. Only schema, boolean relationships, and aggregate availability behavior were retained; no seller identity, listing identifier, or price was retained.
+
 A controlled live compatibility check on 2026-08-04 resubmitted one eligible listing's current price and current quantity through the corrected bulk-Pricing contract. Seller Portal accepted the no-op save; no price, quantity, listing identifiers, or credentials were retained.
 
 ## Live compatibility observation

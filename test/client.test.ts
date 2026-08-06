@@ -158,7 +158,129 @@ describe("TcgplayerSellerClient", () => {
           },
         },
       },
+      context: {
+        cart: {},
+        shippingCountry: "US",
+        userProfile: { productLineAffinity: "", priceAffinity: 0 },
+      },
     });
+  });
+
+  it("preserves validated buyer-facing Direct availability evidence", async () => {
+    const directListing = {
+      listingId: 88,
+      productId: 123,
+      productConditionId: 456,
+      conditionId: 2,
+      condition: "Lightly Played",
+      channelId: 1,
+      printing: "Normal",
+      language: "English",
+      languageId: 1,
+      sellerKey: "direct_seller_test",
+      sellerName: "Synthetic Direct Seller",
+      quantity: 2,
+      price: 1.67,
+      shippingPrice: 3.99,
+      directListing: true,
+      directInventory: 12,
+      directProduct: true,
+      directSeller: true,
+      listingType: "standard",
+      sellerPrograms: ["Direct", "DirectViewable"],
+      customData: { images: [] },
+    };
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse({
+        errors: [],
+        results: [
+          {
+            totalResults: 1,
+            results: [
+              {
+                productId: 123,
+                productName: "Synthetic Card",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set",
+                rarityName: "Rare",
+                marketPrice: 3.5,
+                totalListings: 1,
+                listings: [directListing],
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.searchMarketplaceProducts({
+      productIds: [123],
+      channelId: 1,
+    });
+
+    expect(result.products[0]?.listings[0]).toMatchObject({
+      directListing: true,
+      directInventory: 12,
+      directProduct: true,
+      directSeller: true,
+      listingType: "standard",
+      sellerPrograms: ["Direct", "DirectViewable"],
+    });
+  });
+
+  it("rejects malformed Direct availability evidence", async () => {
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse({
+        errors: [],
+        results: [
+          {
+            totalResults: 1,
+            results: [
+              {
+                productId: 123,
+                productName: "Synthetic Card",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set",
+                rarityName: "Rare",
+                marketPrice: 3.5,
+                totalListings: 1,
+                listings: [
+                  {
+                    listingId: 88,
+                    productId: 123,
+                    productConditionId: 456,
+                    conditionId: 2,
+                    condition: "Lightly Played",
+                    channelId: 1,
+                    printing: "Normal",
+                    language: "English",
+                    languageId: 1,
+                    sellerKey: "direct_seller_test",
+                    sellerName: "Synthetic Direct Seller",
+                    quantity: 2,
+                    price: 1.67,
+                    shippingPrice: 3.99,
+                    directListing: true,
+                    directInventory: 1.5,
+                    directProduct: true,
+                    directSeller: true,
+                    listingType: "standard",
+                    sellerPrograms: ["Direct", "DirectViewable"],
+                    customData: { images: [] },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.searchMarketplaceProducts({ productIds: [123], channelId: 1 }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
   });
 
   it("searches the catalog by product name and optional product line", async () => {

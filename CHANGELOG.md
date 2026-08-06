@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented here.
 
+## 0.5.2 - Unreleased
+
+- Preserve validated Direct product, seller, Authentication Center inventory, listing-type, and seller-program evidence from marketplace responses.
+- Send explicit U.S. buyer context with marketplace searches so ranking and shipping values match the buyer-facing marketplace context more closely.
+
 ## 0.5.1 - Unreleased
 
 - Preserve the marketplace response's optional `directListing` eligibility flag. Consumers must not infer customer-visible Direct eligibility from `channelId` alone.

@@ -125,7 +125,9 @@ Mutations are never automatically retried. A timeout, lost connection, server er
 
 ## Price updates
 
-Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve current comparison records by product, condition, printing, and language. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, and whether to raise or lower a price. For channel 1, `channelId` alone does not prove that a record is customer-buyable through Direct. Consumers using Direct comparisons must require `directListing === true`; a missing or false flag is ineligible.
+Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve current comparison records by product, condition, printing, and language. Marketplace searches include an explicit U.S. buyer context. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, and whether to raise or lower a price.
+
+For channel 1, no single field proves that a record is customer-buyable through Direct. Consumers using Direct comparisons should fail closed unless `directListing`, `directProduct`, and `directSeller` are all `true`, `directInventory` is a positive integer, `listingType` is `standard`, and `sellerPrograms` contains `DirectViewable`. Missing evidence is ineligible. These fields describe the marketplace response at request time and do not guarantee later cart or checkout availability.
 
 `updateSellerPrices` reproduces Seller Portal's live bulk-Pricing price update. Each update deliberately requires the listing's current quantity, reserve quantity, channel, and identifiers; the method always sends an add-to-quantity value of zero and explicitly targets live rather than staged inventory. This prevents a price update from silently inventing or clearing inventory state.
 
