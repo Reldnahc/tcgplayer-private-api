@@ -533,6 +533,36 @@ describe("TcgplayerSellerClient", () => {
     ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
   });
 
+  it("accepts feedback that omits optional fulfillment questions", async () => {
+    const client = clientWith(
+      fetchQueue([
+        jsonResponse({
+          result: [
+            {
+              active: true,
+              createdDate: "2026-08-01T12:00:00.000Z",
+              feedbackRating: 4,
+              sellerKey: syntheticSellerKey,
+            },
+          ],
+          total: 1,
+        }),
+      ]).fetchImplementation,
+    );
+
+    const result = await client.listSellerFeedback({
+      sellerKey: syntheticSellerKey,
+    });
+
+    expect(result.feedback).toEqual([
+      {
+        rating: 4,
+        createdAt: "2026-08-01T12:00:00.000Z",
+        active: true,
+      },
+    ]);
+  });
+
   it("reads and validates live seller inventory from marketplace search", async () => {
     const marketplaceProduct = {
       productId: 123,

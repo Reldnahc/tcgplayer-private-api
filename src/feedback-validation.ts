@@ -141,6 +141,12 @@ function feedbackEntry(
   const comment = optionalText(source, "comment", path, 20_000);
   const buyerNickname = optionalText(source, "userNickname", path, 512);
   const updatedAt = optionalTimestamp(source, "updatedDate", path);
+  const arrivedWhenExpected = optionalBooleanValue(
+    source,
+    "arrivedWhenExpected",
+    path,
+  );
+  const asDescribed = optionalBooleanValue(source, "asDescribed", path);
   const goodCommunication = optionalBooleanValue(
     source,
     "goodCommunication",
@@ -153,8 +159,8 @@ function feedbackEntry(
     createdAt: timestamp(source, "createdDate", path),
     ...(updatedAt === undefined ? {} : { updatedAt }),
     active: booleanValue(source, "active", path),
-    arrivedWhenExpected: booleanValue(source, "arrivedWhenExpected", path),
-    asDescribed: booleanValue(source, "asDescribed", path),
+    ...(arrivedWhenExpected === undefined ? {} : { arrivedWhenExpected }),
+    ...(asDescribed === undefined ? {} : { asDescribed }),
     ...(goodCommunication === undefined ? {} : { goodCommunication }),
   };
 }

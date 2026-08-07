@@ -6,6 +6,7 @@ All notable changes to this package will be documented here.
 
 - Add validated, paginated read-only seller feedback with rating, comment-only, and age filters.
 - Add aggregate star and fulfillment-question rating summaries.
+- Accept feedback rows that omit optional fulfillment-question answers.
 - Omit provider user keys and seller-order identifiers, and never send the seller-session cookie to the public feedback service.
 
 ## 0.6.1 - Unreleased

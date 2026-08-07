@@ -136,8 +136,8 @@ export interface SellerFeedbackEntry {
   readonly createdAt: string;
   readonly updatedAt?: string;
   readonly active: boolean;
-  readonly arrivedWhenExpected: boolean;
-  readonly asDescribed: boolean;
+  readonly arrivedWhenExpected?: boolean;
+  readonly asDescribed?: boolean;
   readonly goodCommunication?: boolean;
 }
 
