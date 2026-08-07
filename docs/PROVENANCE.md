@@ -26,7 +26,6 @@ The inspected revision showed these seller behaviors:
 - Observed packing-slip format values: `ByRelease` and `Default`
 - Marketplace search origin: `https://mp-search-api.tcgplayer.com`
 - Marketplace search: `POST /v1/search/request`
-- Paginated product listings: `POST /v1/product/{productId}/listings`
 - Marketplace product details: `GET /v2/product/{productId}/details`, including SKU, condition, printing variant, and language
 - Marketplace SKU price points: `POST https://mpgateway.tcgplayer.com/v1/pricepoints/marketprice/skus/search` with a batch of SKU identifiers
 - Seller inventory filter: live listings for channel `0`, scoped by `sellerKey`, with quantity at least one
@@ -61,8 +60,6 @@ Anonymous read-only observations on 2026-08-05 confirmed that marketplace catalo
 An anonymous read-only exact-condition observation on 2026-08-06 confirmed that a channel-1 search can return standard seller records explicitly marked `directListing: false`. Therefore `channelId: 1` is not sufficient evidence that a record is a customer-visible Direct offer. The package preserves the optional eligibility flag so consumers can fail closed. No seller identity, listing identifier, or price was retained.
 
 Anonymous read-only comparison observations on 2026-08-06 confirmed that channel-1 records also carry Direct product eligibility, seller eligibility, Authentication Center inventory, listing classification, and seller-program flags. A record that ranked as Direct under explicit U.S. buyer context simultaneously reported `directListing`, `directProduct`, and `directSeller` as true, positive `directInventory`, the `standard` listing type, and the `DirectViewable` seller program. Records missing seller eligibility or Authentication Center inventory remained in the raw channel response but were not marked as Direct listings. Only schema, boolean relationships, and aggregate availability behavior were retained; no seller identity, listing identifier, or price was retained.
-
-An anonymous read-only observation of TCGplayer's public Product Details bundle and marketplace service on 2026-08-06 confirmed that product-search responses embed only three spotlight listing rows even when the product reports hundreds of listings, and that nested listing sort and size fields do not expand or reorder that embedded sample. TCGplayer's own Product Details flow instead calls `POST /v1/product/{productId}/listings` with top-level pagination, exact listing filters, and a sort field of `price` or `price+shipping`. The endpoint accepts marketplace and Direct channel identifiers together and returns an exact filtered total separately from the bounded listing page. Only endpoint shape, schema, and aggregate behavior were retained; no seller identity, listing identifier, or price was retained.
 
 A controlled live compatibility check on 2026-08-04 resubmitted one eligible listing's current price and current quantity through the corrected bulk-Pricing contract. Seller Portal accepted the no-op save; no price, quantity, listing identifiers, or credentials were retained.
 

@@ -15,9 +15,8 @@ Seller Portal's pricing save request combines price fields with inventory state.
 - Validate identifiers, bounds, cent precision, batch size, and unique product-condition/channel pairs before any request begins.
 - Submit the observed jQuery-compatible form encoding only to the fixed Seller Portal origin.
 - Never automatically retry. Treat timeouts, lost responses, aborts after submission begins, and server errors as `AMBIGUOUS_RESULT`.
-- Do not treat the three embedded listing rows in a product-search result as a complete comparison set. Expose TCGplayer's separately paginated `/v1/product/{productId}/listings` request with exact listing filters and an explicit price sort so consumers can retrieve the evidence their pricing policy requires.
 - Cover the request contract with synthetic tests only. A live price change requires a deliberately selected listing and operator supervision.
 
 ## Consequences
 
-Consumers must obtain fresh listing state before queuing a change and must reconcile ambiguous results in Seller Portal. Background queues can pace definite, independent updates, but must stop an ambiguous job for review instead of blindly resubmitting it. Product-level listing totals and returned listing rows remain separate evidence: a large total does not make a truncated page complete, and consumers decide how far to paginate for their policy.
+Consumers must obtain fresh listing state before queuing a change and must reconcile ambiguous results in Seller Portal. Background queues can pace definite, independent updates, but must stop an ambiguous job for review instead of blindly resubmitting it.

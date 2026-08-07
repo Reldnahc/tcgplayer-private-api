@@ -2,11 +2,6 @@
 
 All notable changes to this package will be documented here.
 
-## 0.5.4 - Unreleased
-
-- Add a validated, paginated per-product marketplace-listings search with explicit condition, printing, language, channel, listing-type, and price-sort controls.
-- Preserve TCGplayer's exact filtered listing count separately from the bounded page of returned listing records.
-
 ## 0.5.3 - Unreleased
 
 - Add normalized order-status codes for search summaries and order details while preserving TCGplayer's raw display labels.
