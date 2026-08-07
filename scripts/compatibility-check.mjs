@@ -60,6 +60,27 @@ if (!authCookie || !sellerKey) {
       `Seller feedback compatible; remote reported ${feedback.totalFeedback} feedback item(s) and ${feedbackSummary.totalRatings} aggregate rating(s).`,
     );
 
+    const paymentExperience = await client.getSellerPaymentExperience({
+      sellerKey,
+    });
+    if (paymentExperience === "legacy") {
+      const history = await client.listLegacySellerPayments({ page: 1 });
+      const upcoming = await client.listLegacyUpcomingSellerPayments();
+      writeOutput(
+        `Legacy seller payments compatible; parsed ${history.payments.length} history row(s) and ${upcoming.payments.length} upcoming row(s).`,
+      );
+    } else {
+      const payouts = await client.listSellerPayouts({
+        sellerKey,
+        page: 1,
+        pageSize: 1,
+      });
+      const unpaid = await client.getSellerUnpaidBalance({ sellerKey });
+      writeOutput(
+        `Money Movement payments compatible; remote reported ${payouts.totalPayouts} payout(s) and ${unpaid.transactions.length} unpaid transaction(s).`,
+      );
+    }
+
     if (orderNumber) {
       await client.confirmOrder({ sellerKey, orderNumber });
       writeOutput("Exact-order confirmation compatible.");

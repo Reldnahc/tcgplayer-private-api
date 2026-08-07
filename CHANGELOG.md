@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.7.1 - Unreleased
+
+- Retry a read-only legacy payment table once when a successful HTML response fails runtime validation, while preserving explicit failure for repeated malformed responses.
+
 ## 0.7.0 - Unreleased
 
 - Add validated, paginated read-only seller feedback with rating, comment-only, and age filters.

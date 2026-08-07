@@ -368,14 +368,14 @@ describe("TcgplayerSellerClient", () => {
   });
 
   it("rejects malformed legacy payment tables and login pages", async () => {
+    const invalidHistory = () =>
+      htmlResponse(
+        `<h2>Past Payment History</h2>${legacyPaymentTable(
+          "<tr><td>not-a-date</td><td>8/10/2026</td><td>1</td><td>$1.00</td><td>$0.10</td><td>$0.00</td><td>$0.00</td><td>$0.00</td><td>$0.90</td></tr>",
+        )}`,
+      );
     const malformed = clientWith(
-      fetchQueue([
-        htmlResponse(
-          `<h2>Past Payment History</h2>${legacyPaymentTable(
-            "<tr><td>not-a-date</td><td>8/10/2026</td><td>1</td><td>$1.00</td><td>$0.10</td><td>$0.00</td><td>$0.00</td><td>$0.00</td><td>$0.90</td></tr>",
-          )}`,
-        ),
-      ]).fetchImplementation,
+      fetchQueue([invalidHistory(), invalidHistory()]).fetchImplementation,
     );
     await expect(malformed.listLegacySellerPayments()).rejects.toMatchObject({
       code: "INVALID_RESPONSE",
@@ -391,6 +391,28 @@ describe("TcgplayerSellerClient", () => {
     await expect(
       loggedOut.listLegacyUpcomingSellerPayments(),
     ).rejects.toMatchObject({ code: "AUTHENTICATION_REQUIRED" });
+  });
+
+  it("retries a transiently invalid legacy payment table once", async () => {
+    const row = `<tr>
+      <td>8/12/2026</td><td>8/10/2026</td><td>1</td>
+      <td>$1.00</td><td>$0.10</td><td>$0.00</td>
+      <td>$0.00</td><td>$0.00</td><td>$0.90</td>
+    </tr>`;
+    const { fetchImplementation, requests } = fetchQueue([
+      htmlResponse(
+        legacyPaymentTable(
+          "<tr><td>not-a-date</td><td>8/10/2026</td><td>1</td><td>$1.00</td><td>$0.10</td><td>$0.00</td><td>$0.00</td><td>$0.00</td><td>$0.90</td></tr>",
+        ),
+      ),
+      htmlResponse(legacyPaymentTable(row)),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(client.listLegacyUpcomingSellerPayments()).resolves.toEqual({
+      payments: [expect.objectContaining({ amount: 90 })],
+    });
+    expect(requests).toHaveLength(2);
   });
 
   it("reads paginated seller feedback and aggregate ratings without sending the seller cookie", async () => {

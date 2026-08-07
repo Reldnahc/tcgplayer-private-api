@@ -446,21 +446,49 @@ export class TcgplayerSellerClient {
     }
     const page = boundedInteger("page", input.page, 1, 1, 1_000_000);
     const query = new URLSearchParams({ page: String(page) });
-    const response = await this.transport.sellerPortalHtml(
+    return this.readLegacyPaymentTable(
       `${LEGACY_SELLER_PAYMENTS_PATH}?${query.toString()}`,
-      requestSignal(options),
+      (response) => parseLegacySellerPayments(response, page),
+      options,
     );
-    return parseLegacySellerPayments(response, page);
   }
 
   async listLegacyUpcomingSellerPayments(
     options?: RequestOptions,
   ): Promise<ListLegacyUpcomingSellerPaymentsResult> {
-    const response = await this.transport.sellerPortalHtml(
+    return this.readLegacyPaymentTable(
       LEGACY_UPCOMING_PAYMENTS_PATH,
-      requestSignal(options),
+      parseLegacyUpcomingSellerPayments,
+      options,
     );
-    return parseLegacyUpcomingSellerPayments(response);
+  }
+
+  private async readLegacyPaymentTable<Result>(
+    path: string,
+    parse: (response: string) => Result,
+    options?: RequestOptions,
+  ): Promise<Result> {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await this.transport.sellerPortalHtml(
+        path,
+        requestSignal(options),
+      );
+      try {
+        return parse(response);
+      } catch (error) {
+        if (
+          !(error instanceof TcgplayerApiError) ||
+          error.code !== "INVALID_RESPONSE" ||
+          attempt > 0
+        ) {
+          throw error;
+        }
+      }
+    }
+    throw new TcgplayerApiError(
+      "INVALID_RESPONSE",
+      "TCGplayer returned an invalid legacy payment response.",
+    );
   }
 
   async listSellerFeedback(

@@ -117,6 +117,8 @@ provider labels map to `SellerOrderStatus.Unknown`; they are never guessed.
 
 TCGplayer currently assigns sellers either its legacy Seller Portal payment experience or its newer Money Movement experience. Detect that capability first; an empty Money Movement response does not prove that a legacy seller has no payments. The payment contract is deliberately read-only and does not expose payment instruments, masked bank details, payment setup, payout approval/rejection/retry, or any other payment mutation.
 
+Legacy payment-table reads retry once when a successful HTML response fails runtime validation. A repeated malformed response still raises `INVALID_RESPONSE`; authentication failures and other errors are not retried by this compatibility safeguard.
+
 ```ts
 const experience = await client.getSellerPaymentExperience({
   sellerKey: "your-seller-key",
