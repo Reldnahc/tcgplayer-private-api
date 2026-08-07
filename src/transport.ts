@@ -13,6 +13,7 @@ const ORDER_MANAGEMENT_ORIGIN = "https://order-management-api.tcgplayer.com";
 const SELLER_PORTAL_ORIGIN = "https://store.tcgplayer.com";
 const MARKETPLACE_SEARCH_ORIGIN = "https://mp-search-api.tcgplayer.com";
 const MARKETPLACE_GATEWAY_ORIGIN = "https://mpgateway.tcgplayer.com";
+const MONEY_MOVEMENT_ORIGIN = "https://money-movement.tcgplayer.com";
 const DEFAULT_USER_AGENT = "tcgplayer-private-api";
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
@@ -50,7 +51,8 @@ interface RequestSpec {
     | "order-management"
     | "seller-portal"
     | "marketplace"
-    | "marketplace-gateway";
+    | "marketplace-gateway"
+    | "money-movement";
   readonly accept: "application/json" | "application/pdf" | "text/csv" | "*/*";
   readonly retryMode: "safe" | "never";
   readonly discardResponseBody?: boolean;
@@ -64,6 +66,11 @@ interface BinaryResponse {
 
 interface RawResponse extends BinaryResponse {
   readonly response: Response;
+}
+
+export interface MoneyMovementJsonResponse {
+  readonly value: unknown;
+  readonly totalCount?: number;
 }
 
 class RequestStartGate {
@@ -535,6 +542,68 @@ export class SellerApiTransport {
     }
   }
 
+  async moneyMovementJson(
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<MoneyMovementJsonResponse> {
+    const result = await this.request({
+      method: "GET",
+      path,
+      origin: "money-movement",
+      accept: "application/json",
+      retryMode: "safe",
+      ...(signal === undefined ? {} : { signal }),
+    });
+    const { response, bytes } = result;
+    if (result.contentType === "text/html") {
+      throw new TcgplayerApiError(
+        "AUTHENTICATION_REQUIRED",
+        "TCGplayer returned an HTML page instead of seller payout data. Refresh the authorized session.",
+        errorOptions(response),
+      );
+    }
+    if (
+      result.contentType !== "application/json" &&
+      !result.contentType.endsWith("+json")
+    ) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned an unexpected payout response.",
+        errorOptions(response),
+      );
+    }
+    let value: unknown;
+    try {
+      value = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      ) as unknown;
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned malformed payout JSON.",
+        { ...errorOptions(response), cause: error },
+      );
+    }
+    const totalHeader = response.headers.get("x-total-count");
+    if (totalHeader === null) return { value };
+    if (!/^\d+$/u.test(totalHeader)) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned an invalid payout total.",
+        errorOptions(response),
+      );
+    }
+    const totalCount = Number(totalHeader);
+    if (!Number.isSafeInteger(totalCount)) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned an invalid payout total.",
+        errorOptions(response),
+      );
+    }
+    return { value, totalCount };
+  }
+
   async pdf(
     path: string,
     body: unknown,
@@ -794,11 +863,13 @@ export class SellerApiTransport {
         const origin =
           spec.origin === "seller-portal"
             ? SELLER_PORTAL_ORIGIN
-            : spec.origin === "marketplace-gateway"
-              ? MARKETPLACE_GATEWAY_ORIGIN
-              : spec.origin === "marketplace"
-                ? MARKETPLACE_SEARCH_ORIGIN
-                : ORDER_MANAGEMENT_ORIGIN;
+            : spec.origin === "money-movement"
+              ? MONEY_MOVEMENT_ORIGIN
+              : spec.origin === "marketplace-gateway"
+                ? MARKETPLACE_GATEWAY_ORIGIN
+                : spec.origin === "marketplace"
+                  ? MARKETPLACE_SEARCH_ORIGIN
+                  : ORDER_MANAGEMENT_ORIGIN;
 
         const response = await this.fetchImplementation(
           new URL(spec.path, origin),

@@ -48,6 +48,14 @@ The following files were consulted to identify those facts:
 
 The current public Seller Portal orders bundle was also inspected on 2026-08-03 to confirm protocol shapes independently. It showed carrier detection at `POST /orders/detect-carrier?api-version=2.0`, shipment without tracking at `POST /orders/{encodedOrderNumber}/ship-no-tracking?api-version=2.0`, and bulk status updates at `POST /orders/status-updates?api-version=2.0` with the status `Shipped`. No mutation was sent during inspection.
 
+The public Seller Portal Payments bundle at `https://sellerportal-payments-app.tcgplayer.com/payments.js` was inspected on 2026-08-07. It showed the Money Movement origin `https://money-movement.tcgplayer.com/v1` and these seller-scoped reads:
+
+- `GET /Payouts?SellerKey={sellerKey}&Page={page}&PageSize={pageSize}` with the total in `X-Total-Count`
+- `GET /payouts/by-seller/{sellerKey}/{referenceId}` for payout details
+- `GET /balances/payable?SellerKey={sellerKey}` for the unpaid balance and pending transactions
+
+The bundle formats payout USD values as integer cents and exposes order settlement, refund, and adjustment transaction types. It can also display payment-instrument data and contains administrative payout mutations; this package deliberately implements neither. No TCGplayer source code was copied, no payment mutation was sent, and no seller payment value, identifier, instrument, or credential was retained.
+
 A read-only marketplace compatibility observation on 2026-08-03 confirmed seller-key inventory filtering and product searches filtered by condition. Only schema and aggregate counts were inspected; listing identifiers, names, prices, and credentials were not retained.
 
 The public Seller Portal pricing bundle (`/admin/scripts/pricing/main-built.31397.js`) was inspected on 2026-08-03 and rechecked on 2026-08-04 after definite request rejections exposed a route mismatch. The bulk Pricing page saves through `POST https://store.tcgplayer.com/admin/pricing/updateinventory`, with `type=Pricing` and `isStaged=false` for live inventory. Its submitted model includes product, condition, channel, relative add-to-quantity, absolute post-add quantity, price, custom-price identifier, and reserve quantity fields. The bundle computes `newQty` as current quantity plus add quantity and submits `newQty` as the condition-level `Quantity`. A separate product-detail screen uses `/admin/product/updateinventory`; it is not the contract implemented by this package. The package independently implements a price-only variant with `AddToQuantity` fixed at zero, a positive-addition variant that requires a fresh current quantity and an initial price, and an exact-removal variant that requires a fresh positive unreserved quantity and submits zero as the absolute quantity. `ExistingQuantity` remains fixed at the observed value of zero in all methods.

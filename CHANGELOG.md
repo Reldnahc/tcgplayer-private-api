@@ -2,6 +2,13 @@
 
 All notable changes to this package will be documented here.
 
+## 0.6.0 - Unreleased
+
+- Add validated, paginated read-only seller payout history from TCGplayer's Money Movement interface.
+- Add read-only payout details with normalized order, refund, and adjustment transactions.
+- Add the current unpaid balance and pending transactions while deliberately omitting payment-instrument and bank-account data.
+- Keep payout approval, rejection, retry, payment setup, and every other payment mutation outside the public client contract.
+
 ## 0.5.4 - Unreleased
 
 - Add a validated, paginated per-product marketplace-listings search with explicit condition, printing, language, channel, listing-type, and price-sort controls.

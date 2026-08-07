@@ -12,7 +12,7 @@ The primary consumer is:
 
 ## Current Phase
 
-The reusable seller client is authorized, including explicit tracking and shipment mutations, catalog/SKU discovery, price-only updates, positive live-inventory additions with an initial price, and exact live-SKU inventory clearing. Keep work limited to those reviewed capabilities; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
+The reusable seller client is authorized, including explicit tracking and shipment mutations, catalog/SKU discovery, price-only updates, positive live-inventory additions with an initial price, exact live-SKU inventory clearing, and read-only payout history, payout-detail, and unpaid-balance retrieval. Keep work limited to those reviewed capabilities; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
 
 ## Scope
 
@@ -28,6 +28,7 @@ This repository owns:
 - Catalog product search and exact condition/printing/language SKU discovery.
 - Explicit positive live-inventory additions that submit quantity and initial price together.
 - Explicit exact-SKU live-inventory removals that set an observed unreserved quantity to zero.
+- Read-only seller payout history, payout details, and unpaid-balance retrieval through the observed Money Movement interface.
 - Typed errors, retry hints, compatibility detection, and sanitized contract fixtures.
 - A stable, documented client contract that applications can version and consume.
 - npm packaging, compiled runtime output, type declarations, and release compatibility.
@@ -40,7 +41,7 @@ This repository does not own:
 - User-configurable rules or action dispatch.
 - Printer discovery, label rendering, or print-job submission.
 - Application UI, user accounts, application databases, or deployment stacks.
-- Purchasing postage, refunds, cancellations, customer messaging, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized. Price-only updates, positive inventory additions, and exact unreserved inventory removals are authorized when they preserve other inventory state and follow the mutation-safety rules below.
+- Payment setup, payment-instrument or bank-account retrieval, payout approval/rejection/retry, purchasing postage, refunds, cancellations, customer messaging, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized. Price-only updates, positive inventory additions, and exact unreserved inventory removals are authorized when they preserve other inventory state and follow the mutation-safety rules below.
 
 If a feature can be expressed without knowledge of TCGplayer's private transport, it probably belongs in the consuming application rather than here.
 

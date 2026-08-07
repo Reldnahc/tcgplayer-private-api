@@ -1,6 +1,6 @@
 # tcgplayer-private-api
 
-An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, catalog and seller-inventory reads, price-only listing updates, and positive live-inventory additions without exposing raw private endpoints.
+An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, catalog and seller-inventory reads, price-only listing updates, positive live-inventory additions, and read-only seller payouts without exposing raw private endpoints.
 
 This project is not affiliated with, endorsed by, or supported by TCGplayer. The seller interface is undocumented and can change without notice. Review the agreements and policies that apply to your account before using it.
 
@@ -97,6 +97,9 @@ const packingSlip = await client.getPackingSlip({
 - `updateSellerPrices(input, options?)`
 - `addSellerInventory(input, options?)`
 - `removeSellerInventory(input, options?)`
+- `listSellerPayouts(input, options?)`
+- `getSellerPayout(input, options?)`
+- `getSellerUnpaidBalance(input, options?)`
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
 
@@ -104,6 +107,32 @@ Order responses preserve TCGplayer's validated display label in `orderStatus`
 (search summaries) or `status` (details). Consumers should make decisions from
 the normalized `orderStatusCode` or `statusCode` enum instead. Unrecognized
 provider labels map to `SellerOrderStatus.Unknown`; they are never guessed.
+
+## Read-only seller payments
+
+The payment contract is deliberately limited to payout history, one payout's displayed financial transactions, and the current unpaid balance. It does not expose payment instruments, masked bank details, payment setup, payout approval/rejection/retry, or any other payment mutation.
+
+```ts
+const history = await client.listSellerPayouts({
+  sellerKey: "your-seller-key",
+  page: 1,
+  pageSize: 25,
+});
+
+const unpaid = await client.getSellerUnpaidBalance({
+  sellerKey: "your-seller-key",
+});
+
+const referenceId = history.payouts[0]?.referenceId;
+const detail = referenceId
+  ? await client.getSellerPayout({
+      sellerKey: "your-seller-key",
+      referenceId,
+    })
+  : undefined;
+```
+
+USD amounts are returned as integer minor units (cents), matching TCGplayer's Money Movement response. Optional target-currency metadata uses major units because that is how the Seller Portal formats those fields. Payout status labels are validated non-empty strings and preserved verbatim so consumers do not invent a second status source of truth. Read-only payout requests use the same bounded retry behavior as other reads.
 
 ## Fulfillment mutations
 

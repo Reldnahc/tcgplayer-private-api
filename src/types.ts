@@ -32,6 +32,101 @@ export interface RequestOptions {
   readonly signal?: AbortSignal;
 }
 
+export const SellerPayoutStatus = {
+  Staged: "Staged",
+  InReview: "InReview",
+  Committed: "Committed",
+  InTransit: "InTransit",
+  Succeeded: "Succeeded",
+  Rejected: "Rejected",
+  Failed: "Failed",
+  Retrying: "Retrying",
+} as const;
+
+export type SellerPayoutStatus =
+  (typeof SellerPayoutStatus)[keyof typeof SellerPayoutStatus];
+
+export interface ListSellerPayoutsInput {
+  readonly sellerKey: string;
+  /** One-based page number. */
+  readonly page?: number;
+  readonly pageSize?: number;
+  readonly status?: SellerPayoutStatus;
+}
+
+export interface GetSellerPayoutInput {
+  readonly sellerKey: string;
+  readonly referenceId: string;
+}
+
+export interface GetSellerUnpaidBalanceInput {
+  readonly sellerKey: string;
+}
+
+export interface SellerPayoutMetadata {
+  /** Optional amount in the target currency's major units. */
+  readonly targetAmount?: number;
+  readonly targetCurrency?: string;
+}
+
+export interface SellerPayoutSummary {
+  readonly payoutId: string;
+  readonly referenceId: string | null;
+  readonly createdAt: string;
+  readonly holdUntil?: string;
+  readonly lastSentAt?: string;
+  /** USD minor units (cents), matching the Money Movement contract. */
+  readonly amount: number;
+  readonly ordersCount: number;
+  /** The validated provider status label, preserved verbatim. */
+  readonly status: string;
+  readonly metadata?: SellerPayoutMetadata;
+}
+
+export interface ListSellerPayoutsResult {
+  readonly totalPayouts: number;
+  readonly page: number;
+  readonly pageSize: number;
+  readonly payouts: readonly SellerPayoutSummary[];
+}
+
+export type SellerPayoutTransactionType =
+  "SettleOrder" | "ApplyRefund" | "ApplyAdjustment";
+
+export interface SellerPayoutTransaction {
+  readonly createdAt: string;
+  readonly type: SellerPayoutTransactionType;
+  readonly orderNumber?: string;
+  /** USD minor units (cents). */
+  readonly amount: number;
+  /** USD minor units (cents). */
+  readonly feeAmount: number;
+  /** USD minor units (cents). */
+  readonly netAmount: number;
+}
+
+export interface SellerPayoutDetail {
+  readonly payoutId: string;
+  readonly referenceId: string;
+  readonly createdAt: string;
+  readonly lastSentAt?: string;
+  /** USD minor units (cents). */
+  readonly amount: number;
+  readonly status: string;
+  readonly totalSales: number;
+  readonly totalRefunds: number;
+  readonly totalFees: number;
+  readonly totalAdjustments: number;
+  readonly metadata?: SellerPayoutMetadata;
+  readonly transactions: readonly SellerPayoutTransaction[];
+}
+
+export interface SellerUnpaidBalance {
+  /** USD minor units (cents). */
+  readonly totalBalance: number;
+  readonly transactions: readonly SellerPayoutTransaction[];
+}
+
 export type SellerOrderSearchRange = "LastThreeMonths";
 export const SellerOrderStatus = {
   Canceled: "Canceled",

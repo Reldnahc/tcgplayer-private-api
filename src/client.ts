@@ -11,6 +11,11 @@ import {
   parseMarketplaceProductListings,
   parseMarketplaceProducts,
 } from "./marketplace-validation.js";
+import {
+  parseSellerPayoutDetail,
+  parseSellerPayouts,
+  parseSellerUnpaidBalance,
+} from "./payments-validation.js";
 import { SellerApiTransport } from "./transport.js";
 import type {
   AddSellerInventoryInput,
@@ -22,11 +27,15 @@ import type {
   DetectCarrierResult,
   ExportPackingSlipsInput,
   ExportPullSheetInput,
+  GetSellerPayoutInput,
+  GetSellerUnpaidBalanceInput,
   GetPackingSlipInput,
   GetCatalogProductInput,
   MarkOrdersShippedInput,
   MarkOrdersShippedResult,
   ListSellerInventoryInput,
+  ListSellerPayoutsInput,
+  ListSellerPayoutsResult,
   MarketplaceProduct,
   OrderFulfillmentMutationResult,
   PackingSlipDocument,
@@ -44,6 +53,9 @@ import type {
   SearchCatalogProductsResult,
   SellerInventoryAddition,
   SellerInventoryRemoval,
+  SellerPayoutDetail,
+  SellerPayoutStatus,
+  SellerUnpaidBalance,
   SellerOrderDetail,
   SellerOrderStatusFilter,
   ShipOrderWithoutTrackingInput,
@@ -68,6 +80,16 @@ const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
 const MARKETPLACE_PRODUCT_LISTINGS_PATH = "/v1/product";
 const MARKETPLACE_PRODUCT_PATH = "/v2/product";
 const MARKETPLACE_SKU_PRICE_PATH = "/v1/pricepoints/marketprice/skus/search";
+const SELLER_PAYOUT_STATUSES: ReadonlySet<SellerPayoutStatus> = new Set([
+  "Staged",
+  "InReview",
+  "Committed",
+  "InTransit",
+  "Succeeded",
+  "Rejected",
+  "Failed",
+  "Retrying",
+]);
 const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
   "Canceled",
   "Delivered",
@@ -378,6 +400,79 @@ export class TcgplayerSellerClient {
       throw invalidArgument("Client options are required.");
     }
     this.transport = new SellerApiTransport(options);
+  }
+
+  async listSellerPayouts(
+    input: ListSellerPayoutsInput,
+    options?: RequestOptions,
+  ): Promise<ListSellerPayoutsResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Payout search input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const page = boundedInteger("page", input.page, 1, 1, 1_000_000);
+    const pageSize = boundedInteger("pageSize", input.pageSize, 25, 1, 100);
+    if (
+      input.status !== undefined &&
+      !SELLER_PAYOUT_STATUSES.has(input.status)
+    ) {
+      throw invalidArgument("status is unsupported.");
+    }
+    const query = new URLSearchParams({
+      SellerKey: sellerKey,
+      Page: String(page),
+      PageSize: String(pageSize),
+    });
+    if (input.status !== undefined) query.set("Status", input.status);
+    const response = await this.transport.moneyMovementJson(
+      `/v1/Payouts?${query.toString()}`,
+      requestSignal(options),
+    );
+    return parseSellerPayouts(
+      response.value,
+      response.totalCount,
+      page,
+      pageSize,
+    );
+  }
+
+  async getSellerPayout(
+    input: GetSellerPayoutInput,
+    options?: RequestOptions,
+  ): Promise<SellerPayoutDetail> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Payout detail input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const referenceId = requiredText("referenceId", input.referenceId, 256);
+    const response = await this.transport.moneyMovementJson(
+      `/v1/payouts/by-seller/${encodeURIComponent(sellerKey)}/${encodeURIComponent(referenceId)}`,
+      requestSignal(options),
+    );
+    const payout = parseSellerPayoutDetail(response.value);
+    if (payout.referenceId !== referenceId) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned details for a different payout reference.",
+      );
+    }
+    return payout;
+  }
+
+  async getSellerUnpaidBalance(
+    input: GetSellerUnpaidBalanceInput,
+    options?: RequestOptions,
+  ): Promise<SellerUnpaidBalance> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Unpaid-balance input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const query = new URLSearchParams({ SellerKey: sellerKey });
+    const response = await this.transport.moneyMovementJson(
+      `/v1/balances/payable?${query.toString()}`,
+      requestSignal(options),
+    );
+    return parseSellerUnpaidBalance(response.value);
   }
 
   async searchOrders(

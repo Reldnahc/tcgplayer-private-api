@@ -55,6 +55,202 @@ function clientWith(
 }
 
 describe("TcgplayerSellerClient", () => {
+  it("reads a validated, paginated seller payout history", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse(
+        [
+          {
+            payoutId: "synthetic-payout-id",
+            referenceId: "SYNTHETIC-PAYOUT-1",
+            sellerKey: syntheticSellerKey,
+            sellerName: "Synthetic Seller",
+            createdAt: "2026-08-01T12:00:00.000Z",
+            holdUntil: "2026-08-03T12:00:00.000Z",
+            lastSentAt: null,
+            amount: 12_345,
+            ordersCount: 4,
+            status: "Committed",
+            metadata: {
+              TargetAmount: "123.45",
+              TargetCurrency: "CAD",
+            },
+            paymentInstrument: { displayValue: "9999" },
+          },
+        ],
+        200,
+        { "x-total-count": "31" },
+      ),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.listSellerPayouts({
+      sellerKey: syntheticSellerKey,
+      page: 2,
+      pageSize: 10,
+      status: "Committed",
+    });
+
+    expect(result).toEqual({
+      totalPayouts: 31,
+      page: 2,
+      pageSize: 10,
+      payouts: [
+        {
+          payoutId: "synthetic-payout-id",
+          referenceId: "SYNTHETIC-PAYOUT-1",
+          createdAt: "2026-08-01T12:00:00.000Z",
+          holdUntil: "2026-08-03T12:00:00.000Z",
+          amount: 12_345,
+          ordersCount: 4,
+          status: "Committed",
+          metadata: { targetAmount: 123.45, targetCurrency: "CAD" },
+        },
+      ],
+    });
+    expect(requests[0]?.url).toBe(
+      `https://money-movement.tcgplayer.com/v1/Payouts?SellerKey=${syntheticSellerKey}&Page=2&PageSize=10&Status=Committed`,
+    );
+    expect(requests[0]?.init?.method).toBe("GET");
+    expect(new Headers(requests[0]?.init?.headers).get("cookie")).toBe(
+      "TCGAuthTicket_Production=synthetic-cookie-value;",
+    );
+  });
+
+  it("reads payout details while omitting payment-instrument data", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        payoutId: "synthetic-payout-id",
+        referenceId: "SYNTHETIC PAYOUT/1",
+        createdAt: "2026-08-01T12:00:00.000Z",
+        lastSentAt: "2026-08-03T12:00:00.000Z",
+        amount: 10_900,
+        status: "Succeeded",
+        totalSales: 12_000,
+        totalRefunds: -500,
+        totalFees: -700,
+        totalAdjustments: 100,
+        metadata: { TargetAmount: 109, TargetCurrency: "USD" },
+        paymentInstrument: { displayValue: "9999", name: "Synthetic bank" },
+        transactions: [
+          {
+            createdAt: "2026-08-01T10:00:00.000Z",
+            type: "SettleOrder",
+            orderNumber: "SYNTHETIC-ORDER-1",
+            entries: { amount: 12_000, feeAmount: -700, netAmount: 11_300 },
+          },
+          {
+            createdAt: "2026-08-01T11:00:00.000Z",
+            type: "CommitPayout",
+          },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.getSellerPayout({
+      sellerKey: "seller/key",
+      referenceId: "SYNTHETIC PAYOUT/1",
+    });
+
+    expect(result).toEqual({
+      payoutId: "synthetic-payout-id",
+      referenceId: "SYNTHETIC PAYOUT/1",
+      createdAt: "2026-08-01T12:00:00.000Z",
+      lastSentAt: "2026-08-03T12:00:00.000Z",
+      amount: 10_900,
+      status: "Succeeded",
+      totalSales: 12_000,
+      totalRefunds: -500,
+      totalFees: -700,
+      totalAdjustments: 100,
+      metadata: { targetAmount: 109, targetCurrency: "USD" },
+      transactions: [
+        {
+          createdAt: "2026-08-01T10:00:00.000Z",
+          type: "SettleOrder",
+          orderNumber: "SYNTHETIC-ORDER-1",
+          amount: 12_000,
+          feeAmount: -700,
+          netAmount: 11_300,
+        },
+      ],
+    });
+    expect(requests[0]?.url).toBe(
+      "https://money-movement.tcgplayer.com/v1/payouts/by-seller/seller%2Fkey/SYNTHETIC%20PAYOUT%2F1",
+    );
+    expect(result).not.toHaveProperty("paymentInstrument");
+  });
+
+  it("reads the seller unpaid balance and its supported transactions", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        totalBalance: 2_475,
+        transactions: [
+          {
+            createdAt: "2026-08-04T10:00:00.000Z",
+            type: "ApplyAdjustment",
+            orderNumber: null,
+            amount: 2_500,
+            feeAmount: -25,
+            netAmount: 2_475,
+          },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.getSellerUnpaidBalance({ sellerKey: syntheticSellerKey }),
+    ).resolves.toEqual({
+      totalBalance: 2_475,
+      transactions: [
+        {
+          createdAt: "2026-08-04T10:00:00.000Z",
+          type: "ApplyAdjustment",
+          amount: 2_500,
+          feeAmount: -25,
+          netAmount: 2_475,
+        },
+      ],
+    });
+    expect(requests[0]?.url).toBe(
+      `https://money-movement.tcgplayer.com/v1/balances/payable?SellerKey=${syntheticSellerKey}`,
+    );
+  });
+
+  it("rejects invalid payout totals and mismatched payout references", async () => {
+    const invalidTotal = clientWith(
+      fetchQueue([jsonResponse([], 200, { "x-total-count": "many" })])
+        .fetchImplementation,
+    );
+    await expect(
+      invalidTotal.listSellerPayouts({ sellerKey: syntheticSellerKey }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+
+    const mismatch = clientWith(
+      fetchQueue([
+        jsonResponse({
+          payoutId: "synthetic-payout-id",
+          referenceId: "DIFFERENT",
+          createdAt: "2026-08-01T12:00:00.000Z",
+          amount: 0,
+          status: "Succeeded",
+          totalSales: 0,
+          totalRefunds: 0,
+          totalFees: 0,
+          totalAdjustments: 0,
+          transactions: [],
+        }),
+      ]).fetchImplementation,
+    );
+    await expect(
+      mismatch.getSellerPayout({
+        sellerKey: syntheticSellerKey,
+        referenceId: "EXPECTED",
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
   it("reads and validates live seller inventory from marketplace search", async () => {
     const marketplaceProduct = {
       productId: 123,
