@@ -679,3 +679,15 @@ export interface ListSellerInventoryInput {
   /** Maximum number of pages to read. Each page contains at most 24 products. */
   readonly maximumPages?: number;
 }
+
+export interface SellerInventoryProgress {
+  readonly channelId: number;
+  readonly pagesLoaded: number;
+  readonly productsLoaded: number;
+  readonly totalProducts: number;
+}
+
+export interface ListSellerInventoryOptions extends RequestOptions {
+  /** Called after each validated page without making additional requests. */
+  readonly onProgress?: (progress: SellerInventoryProgress) => void;
+}

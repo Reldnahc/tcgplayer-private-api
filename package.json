@@ -1,6 +1,6 @@
 {
   "name": "tcgplayer-private-api",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Unofficial server-side client for authorized TCGplayer seller operations",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -43,6 +43,7 @@ import type {
   MarkOrdersShippedInput,
   MarkOrdersShippedResult,
   ListSellerInventoryInput,
+  ListSellerInventoryOptions,
   ListSellerFeedbackInput,
   ListSellerFeedbackResult,
   ListLegacySellerPaymentsInput,
@@ -1272,7 +1273,7 @@ export class TcgplayerSellerClient {
 
   async listSellerInventory(
     input: ListSellerInventoryInput,
-    options?: RequestOptions,
+    options?: ListSellerInventoryOptions,
   ): Promise<readonly MarketplaceProduct[]> {
     if (typeof input !== "object" || input === null) {
       throw invalidArgument("Seller inventory input is required.");
@@ -1305,6 +1306,12 @@ export class TcgplayerSellerClient {
       );
       expectedTotal = result.totalProducts;
       products.push(...result.products);
+      options?.onProgress?.({
+        channelId,
+        pagesLoaded: page + 1,
+        productsLoaded: Math.min(products.length, expectedTotal),
+        totalProducts: expectedTotal,
+      });
       if (result.products.length === 0) break;
     }
     if (products.length < expectedTotal) {

@@ -190,6 +190,8 @@ Mutations are never automatically retried. A timeout, lost connection, server er
 
 Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve bounded product search results. Product-search responses may contain only TCGplayer's small embedded spotlight sample even when `totalListings` is much larger; consumers must not interpret that product-level count as the number of returned comparable records. Use `searchMarketplaceProductListings` when pricing requires TCGplayer's explicitly filtered, sorted, and paginated listing rows for one product. Both marketplace methods include an explicit U.S. buyer context. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, shipping normalization, and whether to raise or lower a price.
 
+`listSellerInventory` accepts an optional `onProgress` callback in its request options. Each validated page reports its channel, pages loaded, products loaded, and TCGplayer-reported total. Progress reporting observes the existing pagination and never creates an additional marketplace request.
+
 ```ts
 const page = await client.searchMarketplaceProductListings({
   productId: 212043,

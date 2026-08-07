@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.7.2 - Unreleased
+
+- Report validated seller-inventory page and product counts through an optional progress callback without adding marketplace requests.
+
 ## 0.7.1 - Unreleased
 
 - Retry a read-only legacy payment table once when a successful HTML response fails runtime validation, while preserving explicit failure for repeated malformed responses.

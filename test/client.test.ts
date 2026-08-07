@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createTcgplayerSellerClient,
   TcgplayerApiError,
@@ -624,10 +624,12 @@ describe("TcgplayerSellerClient", () => {
       }),
     ]);
     const client = clientWith(fetchImplementation);
+    const onProgress = vi.fn();
 
-    const products = await client.listSellerInventory({
-      sellerKey: syntheticSellerKey,
-    });
+    const products = await client.listSellerInventory(
+      { sellerKey: syntheticSellerKey },
+      { onProgress },
+    );
 
     expect(products).toHaveLength(1);
     expect(products[0]).toMatchObject({
@@ -646,6 +648,12 @@ describe("TcgplayerSellerClient", () => {
     expect(requests[0]?.url).toBe(
       "https://mp-search-api.tcgplayer.com/v1/search/request",
     );
+    expect(onProgress).toHaveBeenCalledWith({
+      channelId: 0,
+      pagesLoaded: 1,
+      productsLoaded: 1,
+      totalProducts: 1,
+    });
     expect(JSON.parse(String(requests[0]?.init?.body))).toMatchObject({
       from: 0,
       size: 24,
