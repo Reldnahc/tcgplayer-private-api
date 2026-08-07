@@ -92,6 +92,7 @@ const packingSlip = await client.getPackingSlip({
 - `searchCatalogProducts(input, options?)`
 - `getCatalogProduct(input, options?)`
 - `searchMarketplaceProducts(input, options?)`
+- `searchMarketplaceProductListings(input, options?)`
 - `listSellerInventory(input, options?)`
 - `updateSellerPrices(input, options?)`
 - `addSellerInventory(input, options?)`
@@ -130,7 +131,22 @@ Mutations are never automatically retried. A timeout, lost connection, server er
 
 ## Price updates
 
-Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve current comparison records by product, condition, printing, and language. Marketplace searches include an explicit U.S. buyer context. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, and whether to raise or lower a price.
+Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve bounded product search results. Product-search responses may contain only TCGplayer's small embedded spotlight sample even when `totalListings` is much larger; consumers must not interpret that product-level count as the number of returned comparable records. Use `searchMarketplaceProductListings` when pricing requires TCGplayer's explicitly filtered, sorted, and paginated listing rows for one product. Both marketplace methods include an explicit U.S. buyer context. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, shipping normalization, and whether to raise or lower a price.
+
+```ts
+const page = await client.searchMarketplaceProductListings({
+  productId: 212043,
+  conditions: ["Near Mint", "Lightly Played"],
+  printings: ["Normal"],
+  languages: ["English"],
+  channelIds: [0, 1],
+  listingTypes: ["standard"],
+  sort: "price",
+  limit: 24,
+});
+
+console.log(page.totalListings, page.listings.length);
+```
 
 For channel 1, no single field proves that a record is customer-buyable through Direct. Consumers using Direct comparisons should fail closed unless `directListing`, `directProduct`, and `directSeller` are all `true`, `directInventory` is a positive integer, `listingType` is `standard`, and `sellerPrograms` contains `DirectViewable`. Missing evidence is ineligible. These fields describe the marketplace response at request time and do not guarantee later cart or checkout availability.
 

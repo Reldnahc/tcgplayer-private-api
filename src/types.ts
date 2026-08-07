@@ -452,6 +452,28 @@ export interface SearchMarketplaceProductsResult {
   readonly products: readonly MarketplaceProduct[];
 }
 
+export type MarketplaceListingSort = "price" | "price+shipping";
+
+export interface SearchMarketplaceProductListingsInput {
+  readonly productId: number;
+  readonly conditions?: readonly string[];
+  readonly printings?: readonly string[];
+  readonly languages?: readonly string[];
+  readonly channelIds?: readonly number[];
+  readonly listingTypes?: readonly string[];
+  readonly offset?: number;
+  /** TCGplayer's product page offers at most 50 listings per page. */
+  readonly limit?: number;
+  /** Defaults to buyer-facing price-plus-shipping order. */
+  readonly sort?: MarketplaceListingSort;
+}
+
+export interface SearchMarketplaceProductListingsResult {
+  readonly productId: number;
+  readonly totalListings: number;
+  readonly listings: readonly MarketplaceListing[];
+}
+
 export interface ListSellerInventoryInput {
   readonly sellerKey: string;
   readonly channelId?: number;

@@ -7,7 +7,10 @@ import {
   rankCatalogProducts,
   withCatalogFoilMarketPrices,
 } from "./catalog-validation.js";
-import { parseMarketplaceProducts } from "./marketplace-validation.js";
+import {
+  parseMarketplaceProductListings,
+  parseMarketplaceProducts,
+} from "./marketplace-validation.js";
 import { SellerApiTransport } from "./transport.js";
 import type {
   AddSellerInventoryInput,
@@ -34,6 +37,8 @@ import type {
   SearchSellerOrdersInput,
   SearchSellerOrdersResult,
   SearchMarketplaceProductsInput,
+  SearchMarketplaceProductListingsInput,
+  SearchMarketplaceProductListingsResult,
   SearchMarketplaceProductsResult,
   SearchCatalogProductsInput,
   SearchCatalogProductsResult,
@@ -60,6 +65,7 @@ const DETECT_CARRIER_PATH = "/orders/detect-carrier?api-version=2.0";
 const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
 const UPDATE_INVENTORY_PATH = "/admin/pricing/updateinventory";
 const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
+const MARKETPLACE_PRODUCT_LISTINGS_PATH = "/v1/product";
 const MARKETPLACE_PRODUCT_PATH = "/v2/product";
 const MARKETPLACE_SKU_PRICE_PATH = "/v1/pricepoints/marketprice/skus/search";
 const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
@@ -802,6 +808,89 @@ export class TcgplayerSellerClient {
         payload,
         requestSignal(options),
       ),
+    );
+  }
+
+  async searchMarketplaceProductListings(
+    input: SearchMarketplaceProductListingsInput,
+    options?: RequestOptions,
+  ): Promise<SearchMarketplaceProductListingsResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Marketplace product-listings input is required.");
+    }
+    const productId = boundedInteger(
+      "productId",
+      input.productId,
+      0,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const conditions = uniqueTextValues("conditions", input.conditions);
+    const printings = uniqueTextValues("printings", input.printings);
+    const languages = uniqueTextValues("languages", input.languages);
+    const listingTypes = uniqueTextValues("listingTypes", input.listingTypes);
+    let channelIds: readonly number[] | undefined;
+    if (input.channelIds !== undefined) {
+      if (
+        !Array.isArray(input.channelIds) ||
+        input.channelIds.length === 0 ||
+        input.channelIds.length > 8
+      ) {
+        throw invalidArgument("channelIds must contain 1-8 channel IDs.");
+      }
+      channelIds = [
+        ...new Set(
+          input.channelIds.map((channelId, index) =>
+            boundedInteger(
+              `channelIds[${String(index)}]`,
+              channelId,
+              0,
+              0,
+              Number.MAX_SAFE_INTEGER,
+            ),
+          ),
+        ),
+      ];
+    }
+    const offset = boundedInteger("offset", input.offset, 0, 0, 1_000_000);
+    const limit = boundedInteger("limit", input.limit, 24, 1, 50);
+    const sort = input.sort ?? "price+shipping";
+    if (sort !== "price" && sort !== "price+shipping") {
+      throw invalidArgument("sort must be price or price+shipping.");
+    }
+    const payload = {
+      from: offset,
+      size: limit,
+      filters: {
+        term: {
+          sellerStatus: "Live",
+          channelId: channelIds ?? [0, 1],
+          ...(conditions === undefined ? {} : { condition: conditions }),
+          ...(printings === undefined ? {} : { printing: printings }),
+          ...(languages === undefined ? {} : { language: languages }),
+          ...(listingTypes === undefined ? {} : { listingType: listingTypes }),
+        },
+        range: { quantity: { gte: 1 } },
+        exclude: { channelExclusion: 0 },
+      },
+      context: {
+        cart: {},
+        shippingCountry: "US",
+        userProfile: {
+          productLineAffinity: "",
+          priceAffinity: 0,
+        },
+      },
+      sort: { field: sort, order: "asc" },
+    };
+    return parseMarketplaceProductListings(
+      await this.transport.marketplaceJson(
+        "POST",
+        `${MARKETPLACE_PRODUCT_LISTINGS_PATH}/${String(productId)}/listings`,
+        payload,
+        requestSignal(options),
+      ),
+      productId,
     );
   }
 
