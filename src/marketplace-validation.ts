@@ -2,6 +2,7 @@ import { TcgplayerApiError } from "./errors.js";
 import type {
   MarketplaceListing,
   MarketplaceProduct,
+  SearchMarketplaceProductListingsResult,
   SearchMarketplaceProductsResult,
 } from "./types.js";
 
@@ -193,5 +194,35 @@ export function parseMarketplaceProducts(
     products: result.results.map((product, index) =>
       parseProduct(product, `response.results[0].results[${String(index)}]`),
     ),
+  };
+}
+
+export function parseMarketplaceProductListings(
+  value: unknown,
+  productId: number,
+): SearchMarketplaceProductListingsResult {
+  const source = record(value, "response");
+  if (!Array.isArray(source.results) || source.results.length !== 1) {
+    return invalidResponse("response.results must contain one listing result.");
+  }
+  const result = record(source.results[0], "response.results[0]");
+  if (!Array.isArray(result.results)) {
+    return invalidResponse("response.results[0].results must be an array.");
+  }
+  const listings = result.results.map((listing, index) =>
+    parseListing(listing, `response.results[0].results[${String(index)}]`),
+  );
+  if (listings.some((listing) => listing.productId !== productId)) {
+    return invalidResponse(
+      "response.results[0].results contains a different product.",
+    );
+  }
+  return {
+    productId,
+    totalListings: integer(
+      result.totalResults,
+      "response.results[0].totalResults",
+    ),
+    listings,
   };
 }
