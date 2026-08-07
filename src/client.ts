@@ -12,6 +12,9 @@ import {
   parseMarketplaceProducts,
 } from "./marketplace-validation.js";
 import {
+  parseLegacySellerPayments,
+  parseLegacyUpcomingSellerPayments,
+  parseSellerPaymentExperience,
   parseSellerPayoutDetail,
   parseSellerPayouts,
   parseSellerUnpaidBalance,
@@ -27,6 +30,7 @@ import type {
   DetectCarrierResult,
   ExportPackingSlipsInput,
   ExportPullSheetInput,
+  GetSellerPaymentExperienceInput,
   GetSellerPayoutInput,
   GetSellerUnpaidBalanceInput,
   GetPackingSlipInput,
@@ -34,6 +38,9 @@ import type {
   MarkOrdersShippedInput,
   MarkOrdersShippedResult,
   ListSellerInventoryInput,
+  ListLegacySellerPaymentsInput,
+  ListLegacySellerPaymentsResult,
+  ListLegacyUpcomingSellerPaymentsResult,
   ListSellerPayoutsInput,
   ListSellerPayoutsResult,
   MarketplaceProduct,
@@ -53,6 +60,7 @@ import type {
   SearchCatalogProductsResult,
   SellerInventoryAddition,
   SellerInventoryRemoval,
+  SellerPaymentExperience,
   SellerPayoutDetail,
   SellerPayoutStatus,
   SellerUnpaidBalance,
@@ -76,6 +84,8 @@ const PULL_SHEET_PATH = "/orders/pull-sheets/export?api-version=2.0";
 const DETECT_CARRIER_PATH = "/orders/detect-carrier?api-version=2.0";
 const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
 const UPDATE_INVENTORY_PATH = "/admin/pricing/updateinventory";
+const LEGACY_SELLER_PAYMENTS_PATH = "/admin/payment/sellerpayment";
+const LEGACY_UPCOMING_PAYMENTS_PATH = "/admin/payment/loadpendingpayments?r=0";
 const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
 const MARKETPLACE_PRODUCT_LISTINGS_PATH = "/v1/product";
 const MARKETPLACE_PRODUCT_PATH = "/v2/product";
@@ -400,6 +410,47 @@ export class TcgplayerSellerClient {
       throw invalidArgument("Client options are required.");
     }
     this.transport = new SellerApiTransport(options);
+  }
+
+  async getSellerPaymentExperience(
+    input: GetSellerPaymentExperienceInput,
+    options?: RequestOptions,
+  ): Promise<SellerPaymentExperience> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Payment-experience input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const response = await this.transport.sellerPortalApiJson(
+      "/Account/auth-detail?api-version=1.0",
+      requestSignal(options),
+    );
+    return parseSellerPaymentExperience(response, sellerKey);
+  }
+
+  async listLegacySellerPayments(
+    input: ListLegacySellerPaymentsInput = {},
+    options?: RequestOptions,
+  ): Promise<ListLegacySellerPaymentsResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Legacy payment search input must be an object.");
+    }
+    const page = boundedInteger("page", input.page, 1, 1, 1_000_000);
+    const query = new URLSearchParams({ page: String(page) });
+    const response = await this.transport.sellerPortalHtml(
+      `${LEGACY_SELLER_PAYMENTS_PATH}?${query.toString()}`,
+      requestSignal(options),
+    );
+    return parseLegacySellerPayments(response, page);
+  }
+
+  async listLegacyUpcomingSellerPayments(
+    options?: RequestOptions,
+  ): Promise<ListLegacyUpcomingSellerPaymentsResult> {
+    const response = await this.transport.sellerPortalHtml(
+      LEGACY_UPCOMING_PAYMENTS_PATH,
+      requestSignal(options),
+    );
+    return parseLegacyUpcomingSellerPayments(response);
   }
 
   async listSellerPayouts(

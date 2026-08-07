@@ -29,6 +29,25 @@ function jsonResponse(
   });
 }
 
+function htmlResponse(value: string, status = 200): Response {
+  return new Response(value, {
+    status,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
+function legacyPaymentTable(row: string): string {
+  return `<table>
+    <thead><tr>
+      <th>Estimated Transfer Arrival</th><th>Payment Initiated On</th>
+      <th>Orders</th><th>Total Sales (+)</th><th>Total Fees (-)</th>
+      <th>Refunded Orders (-)</th><th>Refunded Fees (+)</th>
+      <th>Adjustments</th><th>Payment</th><th></th>
+    </tr></thead>
+    <tbody>${row}</tbody>
+  </table>`;
+}
+
 function fetchQueue(responses: readonly Response[]) {
   const queue = [...responses];
   const requests: CapturedRequest[] = [];
@@ -249,6 +268,129 @@ describe("TcgplayerSellerClient", () => {
         referenceId: "EXPECTED",
       }),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("detects the seller payment experience from validated account capabilities", async () => {
+    const legacy = fetchQueue([
+      jsonResponse({
+        features: ["Synthetic Feature"],
+        seller: { sellerKey: syntheticSellerKey },
+      }),
+    ]);
+    const eps = fetchQueue([
+      jsonResponse({
+        features: ["Seller Portal Payments EPS Integration"],
+        seller: { sellerKey: syntheticSellerKey.toUpperCase() },
+      }),
+    ]);
+
+    await expect(
+      clientWith(legacy.fetchImplementation).getSellerPaymentExperience({
+        sellerKey: syntheticSellerKey,
+      }),
+    ).resolves.toBe("legacy");
+    await expect(
+      clientWith(eps.fetchImplementation).getSellerPaymentExperience({
+        sellerKey: syntheticSellerKey,
+      }),
+    ).resolves.toBe("money-movement");
+    expect(legacy.requests[0]?.url).toBe(
+      "https://sp-api.tcgplayer.com/Account/auth-detail?api-version=1.0",
+    );
+  });
+
+  it("rejects payment capabilities for a different seller", async () => {
+    const client = clientWith(
+      fetchQueue([
+        jsonResponse({
+          features: [],
+          seller: { sellerKey: "different-seller" },
+        }),
+      ]).fetchImplementation,
+    );
+
+    await expect(
+      client.getSellerPaymentExperience({ sellerKey: syntheticSellerKey }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("reads validated legacy upcoming and past seller payment tables", async () => {
+    const row = `<tr>
+      <td>8/12/2026</td><td>8/10/2026</td><td>1,234</td>
+      <td>$1,250.50</td><td>$125.25</td><td>($20.00)</td>
+      <td>$2.00</td><td>-</td><td>$1,107.25</td>
+      <td><a href="/admin/payment/PendingPaymentOrders?estimatedPaymentDate=synthetic">View Orders</a></td>
+    </tr>`;
+    const history = `<h2>Past Payment History</h2>${legacyPaymentTable(row)}
+      <a href="/admin/payment/sellerpayment?page=2">2</a>
+      <a href="/admin/payment/sellerpayment?page=3">3</a>`;
+    const { fetchImplementation, requests } = fetchQueue([
+      htmlResponse(history),
+      htmlResponse(
+        legacyPaymentTable(
+          `${row}<tr id="totals-row"><td>Totals</td><td>1,234</td><td>$1,250.50</td><td>$125.25</td><td>$20.00</td><td>$2.00</td><td>-</td><td>$1,107.25</td><td></td></tr>`,
+        ),
+      ),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(client.listLegacySellerPayments({ page: 1 })).resolves.toEqual(
+      {
+        page: 1,
+        totalPages: 3,
+        payments: [
+          {
+            estimatedArrivalDate: "2026-08-12",
+            initiatedDate: "2026-08-10",
+            ordersCount: 1234,
+            totalSales: 125_050,
+            totalFees: 12_525,
+            refundedOrders: -2_000,
+            refundedFees: 200,
+            adjustments: 0,
+            amount: 110_725,
+          },
+        ],
+      },
+    );
+    await expect(client.listLegacyUpcomingSellerPayments()).resolves.toEqual({
+      payments: [
+        expect.objectContaining({
+          estimatedArrivalDate: "2026-08-12",
+          amount: 110_725,
+        }),
+      ],
+    });
+    expect(requests.map((request) => request.url)).toEqual([
+      "https://store.tcgplayer.com/admin/payment/sellerpayment?page=1",
+      "https://store.tcgplayer.com/admin/payment/loadpendingpayments?r=0",
+    ]);
+  });
+
+  it("rejects malformed legacy payment tables and login pages", async () => {
+    const malformed = clientWith(
+      fetchQueue([
+        htmlResponse(
+          `<h2>Past Payment History</h2>${legacyPaymentTable(
+            "<tr><td>not-a-date</td><td>8/10/2026</td><td>1</td><td>$1.00</td><td>$0.10</td><td>$0.00</td><td>$0.00</td><td>$0.00</td><td>$0.90</td></tr>",
+          )}`,
+        ),
+      ]).fetchImplementation,
+    );
+    await expect(malformed.listLegacySellerPayments()).rejects.toMatchObject({
+      code: "INVALID_RESPONSE",
+    });
+
+    const loggedOut = clientWith(
+      fetchQueue([
+        htmlResponse(
+          '<html><form><input type="password" name="password"></form></html>',
+        ),
+      ]).fetchImplementation,
+    );
+    await expect(
+      loggedOut.listLegacyUpcomingSellerPayments(),
+    ).rejects.toMatchObject({ code: "AUTHENTICATION_REQUIRED" });
   });
 
   it("reads and validates live seller inventory from marketplace search", async () => {

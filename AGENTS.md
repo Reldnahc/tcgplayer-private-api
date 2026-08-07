@@ -28,7 +28,7 @@ This repository owns:
 - Catalog product search and exact condition/printing/language SKU discovery.
 - Explicit positive live-inventory additions that submit quantity and initial price together.
 - Explicit exact-SKU live-inventory removals that set an observed unreserved quantity to zero.
-- Read-only seller payout history, payout details, and unpaid-balance retrieval through the observed Money Movement interface.
+- Read-only seller payment history and upcoming-payment retrieval through the account-selected legacy Seller Portal or Money Movement experience, including Money Movement payout details and unpaid balances.
 - Typed errors, retry hints, compatibility detection, and sanitized contract fixtures.
 - A stable, documented client contract that applications can version and consume.
 - npm packaging, compiled runtime output, type declarations, and release compatibility.

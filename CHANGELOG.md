@@ -2,6 +2,13 @@
 
 All notable changes to this package will be documented here.
 
+## 0.6.1 - Unreleased
+
+- Detect whether the authenticated seller uses TCGplayer's legacy Payments experience or the newer Money Movement experience.
+- Add validated, paginated legacy past-payment summaries and upcoming estimated payments.
+- Ignore the legacy table's aggregate totals row instead of treating it as a payment record.
+- Keep both payment experiences read-only and omit payment instruments, bank details, and mutation capabilities.
+
 ## 0.6.0 - Unreleased
 
 - Add validated, paginated read-only seller payout history from TCGplayer's Money Movement interface.

@@ -63,6 +63,53 @@ export interface GetSellerUnpaidBalanceInput {
   readonly sellerKey: string;
 }
 
+export const SellerPaymentExperience = {
+  Legacy: "legacy",
+  MoneyMovement: "money-movement",
+} as const;
+
+export type SellerPaymentExperience =
+  (typeof SellerPaymentExperience)[keyof typeof SellerPaymentExperience];
+
+export interface GetSellerPaymentExperienceInput {
+  readonly sellerKey: string;
+}
+
+export interface ListLegacySellerPaymentsInput {
+  /** One-based page number for past payments. */
+  readonly page?: number;
+}
+
+export interface LegacySellerPayment {
+  /** Calendar date in YYYY-MM-DD form. */
+  readonly estimatedArrivalDate: string;
+  /** Calendar date in YYYY-MM-DD form. */
+  readonly initiatedDate: string;
+  readonly ordersCount: number;
+  /** USD minor units (cents), preserving the displayed sign. */
+  readonly totalSales: number;
+  /** USD minor units (cents), preserving the displayed sign. */
+  readonly totalFees: number;
+  /** USD minor units (cents), preserving the displayed sign. */
+  readonly refundedOrders: number;
+  /** USD minor units (cents), preserving the displayed sign. */
+  readonly refundedFees: number;
+  /** USD minor units (cents), preserving the displayed sign. */
+  readonly adjustments: number;
+  /** USD minor units (cents), preserving the displayed sign. */
+  readonly amount: number;
+}
+
+export interface ListLegacySellerPaymentsResult {
+  readonly page: number;
+  readonly totalPages: number;
+  readonly payments: readonly LegacySellerPayment[];
+}
+
+export interface ListLegacyUpcomingSellerPaymentsResult {
+  readonly payments: readonly LegacySellerPayment[];
+}
+
 export interface SellerPayoutMetadata {
   /** Optional amount in the target currency's major units. */
   readonly targetAmount?: number;

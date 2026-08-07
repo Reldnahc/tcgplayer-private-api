@@ -14,6 +14,7 @@ const SELLER_PORTAL_ORIGIN = "https://store.tcgplayer.com";
 const MARKETPLACE_SEARCH_ORIGIN = "https://mp-search-api.tcgplayer.com";
 const MARKETPLACE_GATEWAY_ORIGIN = "https://mpgateway.tcgplayer.com";
 const MONEY_MOVEMENT_ORIGIN = "https://money-movement.tcgplayer.com";
+const SELLER_PORTAL_API_ORIGIN = "https://sp-api.tcgplayer.com";
 const DEFAULT_USER_AGENT = "tcgplayer-private-api";
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
@@ -52,8 +53,10 @@ interface RequestSpec {
     | "seller-portal"
     | "marketplace"
     | "marketplace-gateway"
-    | "money-movement";
-  readonly accept: "application/json" | "application/pdf" | "text/csv" | "*/*";
+    | "money-movement"
+    | "seller-portal-api";
+  readonly accept:
+    "application/json" | "application/pdf" | "text/csv" | "text/html" | "*/*";
   readonly retryMode: "safe" | "never";
   readonly discardResponseBody?: boolean;
   readonly signal?: AbortSignal;
@@ -604,6 +607,92 @@ export class SellerApiTransport {
     return { value, totalCount };
   }
 
+  async sellerPortalApiJson(
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    const result = await this.request({
+      method: "GET",
+      path,
+      origin: "seller-portal-api",
+      accept: "application/json",
+      retryMode: "safe",
+      ...(signal === undefined ? {} : { signal }),
+    });
+    const { response, bytes } = result;
+    if (result.contentType === "text/html") {
+      throw new TcgplayerApiError(
+        "AUTHENTICATION_REQUIRED",
+        "TCGplayer returned an HTML page instead of account capability data. Refresh the authorized session.",
+        errorOptions(response),
+      );
+    }
+    if (
+      result.contentType !== "application/json" &&
+      !result.contentType.endsWith("+json")
+    ) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned an unexpected account capability response.",
+        errorOptions(response),
+      );
+    }
+    try {
+      return JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      ) as unknown;
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned malformed account capability JSON.",
+        { ...errorOptions(response), cause: error },
+      );
+    }
+  }
+
+  async sellerPortalHtml(path: string, signal?: AbortSignal): Promise<string> {
+    const result = await this.request({
+      method: "GET",
+      path,
+      origin: "seller-portal",
+      accept: "text/html",
+      retryMode: "safe",
+      ...(signal === undefined ? {} : { signal }),
+    });
+    const { response, bytes } = result;
+    if (
+      result.contentType !== "text/html" &&
+      result.contentType !== "application/xhtml+xml"
+    ) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned an unexpected legacy payment response.",
+        errorOptions(response),
+      );
+    }
+    let value: string;
+    try {
+      value = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned legacy payment data that is not valid UTF-8.",
+        { ...errorOptions(response), cause: error },
+      );
+    }
+    if (
+      /(?:login|signin)\.tcgplayer\.com/iu.test(value) ||
+      /<input\b[^>]*\btype=["']password["']/iu.test(value)
+    ) {
+      throw new TcgplayerApiError(
+        "AUTHENTICATION_REQUIRED",
+        "TCGplayer returned a login page instead of legacy payment data. Refresh the authorized session.",
+        errorOptions(response),
+      );
+    }
+    return value;
+  }
+
   async pdf(
     path: string,
     body: unknown,
@@ -863,13 +952,15 @@ export class SellerApiTransport {
         const origin =
           spec.origin === "seller-portal"
             ? SELLER_PORTAL_ORIGIN
-            : spec.origin === "money-movement"
-              ? MONEY_MOVEMENT_ORIGIN
-              : spec.origin === "marketplace-gateway"
-                ? MARKETPLACE_GATEWAY_ORIGIN
-                : spec.origin === "marketplace"
-                  ? MARKETPLACE_SEARCH_ORIGIN
-                  : ORDER_MANAGEMENT_ORIGIN;
+            : spec.origin === "seller-portal-api"
+              ? SELLER_PORTAL_API_ORIGIN
+              : spec.origin === "money-movement"
+                ? MONEY_MOVEMENT_ORIGIN
+                : spec.origin === "marketplace-gateway"
+                  ? MARKETPLACE_GATEWAY_ORIGIN
+                  : spec.origin === "marketplace"
+                    ? MARKETPLACE_SEARCH_ORIGIN
+                    : ORDER_MANAGEMENT_ORIGIN;
 
         const response = await this.fetchImplementation(
           new URL(spec.path, origin),

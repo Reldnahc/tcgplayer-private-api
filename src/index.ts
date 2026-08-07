@@ -2,7 +2,11 @@ export {
   createTcgplayerSellerClient,
   TcgplayerSellerClient,
 } from "./client.js";
-export { SellerOrderStatus, SellerPayoutStatus } from "./types.js";
+export {
+  SellerOrderStatus,
+  SellerPaymentExperience,
+  SellerPayoutStatus,
+} from "./types.js";
 export {
   isTcgplayerApiError,
   TcgplayerApiError,
@@ -24,6 +28,7 @@ export type {
   ExportPackingSlipsInput,
   ExportPullSheetInput,
   FulfillmentMutationOutcome,
+  GetSellerPaymentExperienceInput,
   GetPackingSlipInput,
   GetCatalogProductInput,
   GetSellerPayoutInput,
@@ -32,6 +37,9 @@ export type {
   MarkOrdersShippedInput,
   MarkOrdersShippedResult,
   ListSellerInventoryInput,
+  ListLegacySellerPaymentsInput,
+  ListLegacySellerPaymentsResult,
+  ListLegacyUpcomingSellerPaymentsResult,
   ListSellerPayoutsInput,
   ListSellerPayoutsResult,
   MarketplaceListing,
@@ -55,6 +63,7 @@ export type {
   SearchCatalogProductsResult,
   SellerInventoryAddition,
   SellerInventoryRemoval,
+  LegacySellerPayment,
   SellerOrderDetail,
   SellerOrderProduct,
   SellerOrderSearchRange,

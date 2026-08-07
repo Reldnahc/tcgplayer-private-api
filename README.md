@@ -97,6 +97,9 @@ const packingSlip = await client.getPackingSlip({
 - `updateSellerPrices(input, options?)`
 - `addSellerInventory(input, options?)`
 - `removeSellerInventory(input, options?)`
+- `getSellerPaymentExperience(input, options?)`
+- `listLegacySellerPayments(input?, options?)`
+- `listLegacyUpcomingSellerPayments(options?)`
 - `listSellerPayouts(input, options?)`
 - `getSellerPayout(input, options?)`
 - `getSellerUnpaidBalance(input, options?)`
@@ -110,29 +113,29 @@ provider labels map to `SellerOrderStatus.Unknown`; they are never guessed.
 
 ## Read-only seller payments
 
-The payment contract is deliberately limited to payout history, one payout's displayed financial transactions, and the current unpaid balance. It does not expose payment instruments, masked bank details, payment setup, payout approval/rejection/retry, or any other payment mutation.
+TCGplayer currently assigns sellers either its legacy Seller Portal payment experience or its newer Money Movement experience. Detect that capability first; an empty Money Movement response does not prove that a legacy seller has no payments. The payment contract is deliberately read-only and does not expose payment instruments, masked bank details, payment setup, payout approval/rejection/retry, or any other payment mutation.
 
 ```ts
-const history = await client.listSellerPayouts({
-  sellerKey: "your-seller-key",
-  page: 1,
-  pageSize: 25,
-});
-
-const unpaid = await client.getSellerUnpaidBalance({
+const experience = await client.getSellerPaymentExperience({
   sellerKey: "your-seller-key",
 });
 
-const referenceId = history.payouts[0]?.referenceId;
-const detail = referenceId
-  ? await client.getSellerPayout({
-      sellerKey: "your-seller-key",
-      referenceId,
-    })
-  : undefined;
+if (experience === "legacy") {
+  const upcoming = await client.listLegacyUpcomingSellerPayments();
+  const history = await client.listLegacySellerPayments({ page: 1 });
+} else {
+  const history = await client.listSellerPayouts({
+    sellerKey: "your-seller-key",
+    page: 1,
+    pageSize: 25,
+  });
+  const unpaid = await client.getSellerUnpaidBalance({
+    sellerKey: "your-seller-key",
+  });
+}
 ```
 
-USD amounts are returned as integer minor units (cents), matching TCGplayer's Money Movement response. Optional target-currency metadata uses major units because that is how the Seller Portal formats those fields. Payout status labels are validated non-empty strings and preserved verbatim so consumers do not invent a second status source of truth. Read-only payout requests use the same bounded retry behavior as other reads.
+USD amounts are returned as integer minor units (cents). Legacy calendar dates are normalized to `YYYY-MM-DD`; Money Movement timestamps and provider status labels are preserved after validation. Optional target-currency metadata uses major units because that is how the newer Seller Portal formats those fields. Read-only payment requests use the same bounded retry behavior as other reads.
 
 ## Fulfillment mutations
 
