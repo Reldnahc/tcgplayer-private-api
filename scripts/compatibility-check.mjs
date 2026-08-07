@@ -48,6 +48,18 @@ if (!authCookie || !sellerKey) {
       `Seller inventory search compatible; remote reported ${inventory.length} product(s).`,
     );
 
+    const feedback = await client.listSellerFeedback({
+      sellerKey,
+      offset: 0,
+      rows: 1,
+    });
+    const feedbackSummary = await client.getSellerFeedbackAggregation({
+      sellerKey,
+    });
+    writeOutput(
+      `Seller feedback compatible; remote reported ${feedback.totalFeedback} feedback item(s) and ${feedbackSummary.totalRatings} aggregate rating(s).`,
+    );
+
     if (orderNumber) {
       await client.confirmOrder({ sellerKey, orderNumber });
       writeOutput("Exact-order confirmation compatible.");

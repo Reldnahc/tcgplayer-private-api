@@ -12,7 +12,7 @@ The primary consumer is:
 
 ## Current Phase
 
-The reusable seller client is authorized, including explicit tracking and shipment mutations, catalog/SKU discovery, price-only updates, positive live-inventory additions with an initial price, exact live-SKU inventory clearing, and read-only payout history, payout-detail, and unpaid-balance retrieval. Keep work limited to those reviewed capabilities; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
+The reusable seller client is authorized, including explicit tracking and shipment mutations, catalog/SKU discovery, price-only updates, positive live-inventory additions with an initial price, exact live-SKU inventory clearing, read-only payout history, payout-detail, and unpaid-balance retrieval, and read-only seller feedback. Keep work limited to those reviewed capabilities; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
 
 ## Scope
 
@@ -29,6 +29,7 @@ This repository owns:
 - Explicit positive live-inventory additions that submit quantity and initial price together.
 - Explicit exact-SKU live-inventory removals that set an observed unreserved quantity to zero.
 - Read-only seller payment history and upcoming-payment retrieval through the account-selected legacy Seller Portal or Money Movement experience, including Money Movement payout details and unpaid balances.
+- Read-only seller feedback pages and aggregate rating summaries from TCGplayer's current storefront service.
 - Typed errors, retry hints, compatibility detection, and sanitized contract fixtures.
 - A stable, documented client contract that applications can version and consume.
 - npm packaging, compiled runtime output, type declarations, and release compatibility.

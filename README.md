@@ -103,6 +103,8 @@ const packingSlip = await client.getPackingSlip({
 - `listSellerPayouts(input, options?)`
 - `getSellerPayout(input, options?)`
 - `getSellerUnpaidBalance(input, options?)`
+- `listSellerFeedback(input, options?)`
+- `getSellerFeedbackAggregation(input, options?)`
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
 
@@ -136,6 +138,27 @@ if (experience === "legacy") {
 ```
 
 USD amounts are returned as integer minor units (cents). Legacy calendar dates are normalized to `YYYY-MM-DD`; Money Movement timestamps and provider status labels are preserved after validation. Optional target-currency metadata uses major units because that is how the newer Seller Portal formats those fields. Read-only payment requests use the same bounded retry behavior as other reads.
+
+## Read-only seller feedback
+
+Seller feedback comes from TCGplayer's current public storefront service. The feed is sorted newest-first and can be filtered by one-to-five-star rating, comment presence, or age. The aggregate method returns star totals and the three optional fulfillment-question summaries.
+
+```ts
+const page = await client.listSellerFeedback({
+  sellerKey: "your-seller-key",
+  offset: 0,
+  rows: 25,
+  rating: 5,
+  requireComment: true,
+  days: 90,
+});
+
+const summary = await client.getSellerFeedbackAggregation({
+  sellerKey: "your-seller-key",
+});
+```
+
+The normalized contract omits provider user keys, creator keys, seller-order IDs, and redundant seller identifiers. The feedback transport is anonymous and deliberately does not send the configured seller-session cookie. Buyer nicknames and comments remain operator-visible runtime data; consumers must not log or persist them without an explicit need.
 
 ## Fulfillment mutations
 

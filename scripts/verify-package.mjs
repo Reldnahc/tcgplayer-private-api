@@ -74,7 +74,7 @@ try {
       'if (typeof createTcgplayerSellerClient !== "function") throw new Error("missing ESM client export");\n' +
       'if (typeof TcgplayerApiError !== "function") throw new Error("missing ESM error export");\n' +
       'const client = createTcgplayerSellerClient({ session: { authCookie: "synthetic-cookie" }, fetch: async () => { throw new Error("unexpected network call"); } });\n' +
-      'for (const method of ["exportPullSheet", "detectCarrier", "addOrderTracking", "shipOrderWithoutTracking", "markOrdersShipped"]) if (typeof client[method] !== "function") throw new Error(`missing ESM ${method}`);\n',
+      'for (const method of ["exportPullSheet", "detectCarrier", "addOrderTracking", "shipOrderWithoutTracking", "markOrdersShipped", "listSellerFeedback", "getSellerFeedbackAggregation"]) if (typeof client[method] !== "function") throw new Error(`missing ESM ${method}`);\n',
   );
   await writeFile(
     cjsConsumer,
@@ -82,7 +82,7 @@ try {
       'if (typeof createTcgplayerSellerClient !== "function") throw new Error("missing CJS client export");\n' +
       'if (typeof TcgplayerApiError !== "function") throw new Error("missing CJS error export");\n' +
       'const client = createTcgplayerSellerClient({ session: { authCookie: "synthetic-cookie" }, fetch: async () => { throw new Error("unexpected network call"); } });\n' +
-      'for (const method of ["exportPullSheet", "detectCarrier", "addOrderTracking", "shipOrderWithoutTracking", "markOrdersShipped"]) if (typeof client[method] !== "function") throw new Error(`missing CJS ${method}`);\n',
+      'for (const method of ["exportPullSheet", "detectCarrier", "addOrderTracking", "shipOrderWithoutTracking", "markOrdersShipped", "listSellerFeedback", "getSellerFeedbackAggregation"]) if (typeof client[method] !== "function") throw new Error(`missing CJS ${method}`);\n',
   );
 
   execFileSync(execPath, [esmConsumer], {

@@ -8,6 +8,10 @@ import {
   withCatalogFoilMarketPrices,
 } from "./catalog-validation.js";
 import {
+  parseSellerFeedback,
+  parseSellerFeedbackAggregation,
+} from "./feedback-validation.js";
+import {
   parseMarketplaceProductListings,
   parseMarketplaceProducts,
 } from "./marketplace-validation.js";
@@ -31,6 +35,7 @@ import type {
   ExportPackingSlipsInput,
   ExportPullSheetInput,
   GetSellerPaymentExperienceInput,
+  GetSellerFeedbackAggregationInput,
   GetSellerPayoutInput,
   GetSellerUnpaidBalanceInput,
   GetPackingSlipInput,
@@ -38,6 +43,8 @@ import type {
   MarkOrdersShippedInput,
   MarkOrdersShippedResult,
   ListSellerInventoryInput,
+  ListSellerFeedbackInput,
+  ListSellerFeedbackResult,
   ListLegacySellerPaymentsInput,
   ListLegacySellerPaymentsResult,
   ListLegacyUpcomingSellerPaymentsResult,
@@ -61,6 +68,7 @@ import type {
   SellerInventoryAddition,
   SellerInventoryRemoval,
   SellerPaymentExperience,
+  SellerFeedbackAggregation,
   SellerPayoutDetail,
   SellerPayoutStatus,
   SellerUnpaidBalance,
@@ -86,6 +94,8 @@ const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
 const UPDATE_INVENTORY_PATH = "/admin/pricing/updateinventory";
 const LEGACY_SELLER_PAYMENTS_PATH = "/admin/payment/sellerpayment";
 const LEGACY_UPCOMING_PAYMENTS_PATH = "/admin/payment/loadpendingpayments?r=0";
+const SELLER_FEEDBACK_PATH = "/sf/sellerorderfeedback/";
+const SELLER_FEEDBACK_AGGREGATION_PATH = "/sf/sellerorderfeedback/aggregation/";
 const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
 const MARKETPLACE_PRODUCT_LISTINGS_PATH = "/v1/product";
 const MARKETPLACE_PRODUCT_PATH = "/v2/product";
@@ -451,6 +461,69 @@ export class TcgplayerSellerClient {
       requestSignal(options),
     );
     return parseLegacyUpcomingSellerPayments(response);
+  }
+
+  async listSellerFeedback(
+    input: ListSellerFeedbackInput,
+    options?: RequestOptions,
+  ): Promise<ListSellerFeedbackResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Seller feedback search input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const offset = boundedInteger("offset", input.offset, 0, 0, 10_000_000);
+    const rows = boundedInteger("rows", input.rows, 25, 1, 100);
+    if (
+      input.rating !== undefined &&
+      (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5)
+    ) {
+      throw invalidArgument("rating must be an integer from 1 through 5.");
+    }
+    if (
+      input.requireComment !== undefined &&
+      typeof input.requireComment !== "boolean"
+    ) {
+      throw invalidArgument("requireComment must be a boolean.");
+    }
+    const days =
+      input.days === undefined
+        ? undefined
+        : boundedInteger("days", input.days, 0, 1, 36_500);
+    const query = new URLSearchParams({
+      sellerKey,
+      sortBy: "createdDate",
+      offset: String(offset),
+      rows: String(rows),
+    });
+    if (input.rating !== undefined) query.set("rating", String(input.rating));
+    if (input.requireComment === true) query.set("requireComment", "true");
+    if (days !== undefined) query.set("days", String(days));
+    const response = await this.transport.sellerFeedbackJson(
+      `${SELLER_FEEDBACK_PATH}?${query.toString()}`,
+      requestSignal(options),
+    );
+    return parseSellerFeedback(response, sellerKey, offset, rows);
+  }
+
+  async getSellerFeedbackAggregation(
+    input: GetSellerFeedbackAggregationInput,
+    options?: RequestOptions,
+  ): Promise<SellerFeedbackAggregation> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Seller feedback aggregation input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const days =
+      input.days === undefined
+        ? undefined
+        : boundedInteger("days", input.days, 0, 1, 36_500);
+    const query = new URLSearchParams({ sellerKey });
+    if (days !== undefined) query.set("days", String(days));
+    const response = await this.transport.sellerFeedbackJson(
+      `${SELLER_FEEDBACK_AGGREGATION_PATH}?${query.toString()}`,
+      requestSignal(options),
+    );
+    return parseSellerFeedbackAggregation(response);
   }
 
   async listSellerPayouts(

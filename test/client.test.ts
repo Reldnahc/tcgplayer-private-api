@@ -393,6 +393,146 @@ describe("TcgplayerSellerClient", () => {
     ).rejects.toMatchObject({ code: "AUTHENTICATION_REQUIRED" });
   });
 
+  it("reads paginated seller feedback and aggregate ratings without sending the seller cookie", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        result: [
+          {
+            active: true,
+            arrivedWhenExpected: true,
+            asDescribed: true,
+            comment: "Synthetic feedback comment.",
+            createdByUserKey: "synthetic-created-by-key",
+            createdDate: "2026-08-01T12:00:00.000Z",
+            updatedDate: "2026-08-02T12:00:00.000Z",
+            feedbackRating: 5,
+            goodCommunication: false,
+            sellerOrderID: 123,
+            sellerKey: syntheticSellerKey.toUpperCase(),
+            userKey: "synthetic-user-key",
+            userNickname: "Synthetic Buyer",
+          },
+        ],
+        total: 12,
+      }),
+      jsonResponse({
+        result: {
+          totalFeedbackRatings: 12,
+          feedbackRatingFive: 8,
+          feedbackRatingFour: 2,
+          feedbackRatingThree: 1,
+          feedbackRatingTwo: 0,
+          feedbackRatingOne: 1,
+          arrivedWhenExpectedPositive: 9,
+          arrivedWhenExpectedNegative: 1,
+          arrivedWhenExpectedEmpty: 2,
+          asDescribedPositive: 10,
+          asDescribedNegative: 1,
+          asDescribedEmpty: 1,
+          goodCommunicationPositive: 8,
+          goodCommunicationNegative: 1,
+          goodCommunicationEmpty: 3,
+          totalAdditionalRatings: 33,
+        },
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.listSellerFeedback({
+        sellerKey: syntheticSellerKey,
+        offset: 25,
+        rows: 25,
+        rating: 5,
+        requireComment: true,
+        days: 90,
+      }),
+    ).resolves.toEqual({
+      totalFeedback: 12,
+      offset: 25,
+      rows: 25,
+      feedback: [
+        {
+          rating: 5,
+          comment: "Synthetic feedback comment.",
+          buyerNickname: "Synthetic Buyer",
+          createdAt: "2026-08-01T12:00:00.000Z",
+          updatedAt: "2026-08-02T12:00:00.000Z",
+          active: true,
+          arrivedWhenExpected: true,
+          asDescribed: true,
+          goodCommunication: false,
+        },
+      ],
+    });
+    await expect(
+      client.getSellerFeedbackAggregation({
+        sellerKey: syntheticSellerKey,
+        days: 90,
+      }),
+    ).resolves.toEqual({
+      totalRatings: 12,
+      fiveStar: 8,
+      fourStar: 2,
+      threeStar: 1,
+      twoStar: 0,
+      oneStar: 1,
+      arrivedWhenExpected: { positive: 9, negative: 1, unanswered: 2 },
+      asDescribed: { positive: 10, negative: 1, unanswered: 1 },
+      goodCommunication: { positive: 8, negative: 1, unanswered: 3 },
+      totalAdditionalRatings: 33,
+    });
+
+    expect(requests.map((request) => request.url)).toEqual([
+      `https://seller-stores-backend.tcgplayer.com/sf/sellerorderfeedback/?sellerKey=${syntheticSellerKey}&sortBy=createdDate&offset=25&rows=25&rating=5&requireComment=true&days=90`,
+      `https://seller-stores-backend.tcgplayer.com/sf/sellerorderfeedback/aggregation/?sellerKey=${syntheticSellerKey}&days=90`,
+    ]);
+    for (const request of requests) {
+      expect(request.init?.method).toBe("GET");
+      expect(new Headers(request.init?.headers).get("cookie")).toBeNull();
+    }
+  });
+
+  it("rejects cross-seller and malformed seller feedback", async () => {
+    const crossSeller = clientWith(
+      fetchQueue([
+        jsonResponse({
+          result: [
+            {
+              active: true,
+              arrivedWhenExpected: true,
+              asDescribed: true,
+              createdDate: "2026-08-01T12:00:00.000Z",
+              feedbackRating: 5,
+              sellerKey: "different-seller",
+            },
+          ],
+          total: 1,
+        }),
+      ]).fetchImplementation,
+    );
+    await expect(
+      crossSeller.listSellerFeedback({ sellerKey: syntheticSellerKey }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+
+    const malformedAggregate = clientWith(
+      fetchQueue([jsonResponse({ result: { totalFeedbackRatings: "many" } })])
+        .fetchImplementation,
+    );
+    await expect(
+      malformedAggregate.getSellerFeedbackAggregation({
+        sellerKey: syntheticSellerKey,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+
+    await expect(
+      crossSeller.listSellerFeedback({
+        sellerKey: syntheticSellerKey,
+        rating: 0 as 1,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+  });
+
   it("reads and validates live seller inventory from marketplace search", async () => {
     const marketplaceProduct = {
       productId: 123,

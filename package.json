@@ -1,6 +1,6 @@
 {
   "name": "tcgplayer-private-api",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Unofficial server-side client for authorized TCGplayer seller operations",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -48,7 +48,8 @@
     "pricing",
     "inventory",
     "payments",
-    "payouts"
+    "payouts",
+    "feedback"
   ],
   "license": "UNLICENSED",
   "repository": {

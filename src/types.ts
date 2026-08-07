@@ -110,6 +110,63 @@ export interface ListLegacyUpcomingSellerPaymentsResult {
   readonly payments: readonly LegacySellerPayment[];
 }
 
+export type SellerFeedbackRating = 1 | 2 | 3 | 4 | 5;
+
+export interface ListSellerFeedbackInput {
+  readonly sellerKey: string;
+  /** Zero-based record offset. */
+  readonly offset?: number;
+  readonly rows?: number;
+  readonly rating?: SellerFeedbackRating;
+  readonly requireComment?: boolean;
+  /** Restrict results to feedback created within this many days. */
+  readonly days?: number;
+}
+
+export interface GetSellerFeedbackAggregationInput {
+  readonly sellerKey: string;
+  /** Restrict the aggregate to feedback created within this many days. */
+  readonly days?: number;
+}
+
+export interface SellerFeedbackEntry {
+  readonly rating: SellerFeedbackRating;
+  readonly comment?: string;
+  readonly buyerNickname?: string;
+  readonly createdAt: string;
+  readonly updatedAt?: string;
+  readonly active: boolean;
+  readonly arrivedWhenExpected: boolean;
+  readonly asDescribed: boolean;
+  readonly goodCommunication?: boolean;
+}
+
+export interface ListSellerFeedbackResult {
+  readonly totalFeedback: number;
+  readonly offset: number;
+  readonly rows: number;
+  readonly feedback: readonly SellerFeedbackEntry[];
+}
+
+export interface SellerFeedbackAnswerCounts {
+  readonly positive: number;
+  readonly negative: number;
+  readonly unanswered: number;
+}
+
+export interface SellerFeedbackAggregation {
+  readonly totalRatings: number;
+  readonly fiveStar: number;
+  readonly fourStar: number;
+  readonly threeStar: number;
+  readonly twoStar: number;
+  readonly oneStar: number;
+  readonly arrivedWhenExpected: SellerFeedbackAnswerCounts;
+  readonly asDescribed: SellerFeedbackAnswerCounts;
+  readonly goodCommunication: SellerFeedbackAnswerCounts;
+  readonly totalAdditionalRatings: number;
+}
+
 export interface SellerPayoutMetadata {
   /** Optional amount in the target currency's major units. */
   readonly targetAmount?: number;

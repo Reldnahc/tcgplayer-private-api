@@ -15,6 +15,7 @@ const MARKETPLACE_SEARCH_ORIGIN = "https://mp-search-api.tcgplayer.com";
 const MARKETPLACE_GATEWAY_ORIGIN = "https://mpgateway.tcgplayer.com";
 const MONEY_MOVEMENT_ORIGIN = "https://money-movement.tcgplayer.com";
 const SELLER_PORTAL_API_ORIGIN = "https://sp-api.tcgplayer.com";
+const SELLER_STORES_ORIGIN = "https://seller-stores-backend.tcgplayer.com";
 const DEFAULT_USER_AGENT = "tcgplayer-private-api";
 const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
 
@@ -54,11 +55,13 @@ interface RequestSpec {
     | "marketplace"
     | "marketplace-gateway"
     | "money-movement"
-    | "seller-portal-api";
+    | "seller-portal-api"
+    | "seller-stores";
   readonly accept:
     "application/json" | "application/pdf" | "text/csv" | "text/html" | "*/*";
   readonly retryMode: "safe" | "never";
   readonly discardResponseBody?: boolean;
+  readonly sendSessionCookie?: boolean;
   readonly signal?: AbortSignal;
 }
 
@@ -650,6 +653,43 @@ export class SellerApiTransport {
     }
   }
 
+  async sellerFeedbackJson(
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    const result = await this.request({
+      method: "GET",
+      path,
+      origin: "seller-stores",
+      accept: "application/json",
+      retryMode: "safe",
+      sendSessionCookie: false,
+      ...(signal === undefined ? {} : { signal }),
+    });
+    const { response, bytes } = result;
+    if (
+      result.contentType !== "application/json" &&
+      !result.contentType.endsWith("+json")
+    ) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned an unexpected seller feedback response.",
+        errorOptions(response),
+      );
+    }
+    try {
+      return JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      ) as unknown;
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        "TCGplayer returned malformed seller feedback JSON.",
+        { ...errorOptions(response), cause: error },
+      );
+    }
+  }
+
   async sellerPortalHtml(path: string, signal?: AbortSignal): Promise<string> {
     const result = await this.request({
       method: "GET",
@@ -924,9 +964,14 @@ export class SellerApiTransport {
         const headers = new Headers({
           Accept: spec.accept,
           "Cache-Control": "no-cache",
-          Cookie: `TCGAuthTicket_Production=${session.authCookie};`,
           "User-Agent": session.userAgent ?? DEFAULT_USER_AGENT,
         });
+        if (spec.sendSessionCookie !== false) {
+          headers.set(
+            "Cookie",
+            `TCGAuthTicket_Production=${session.authCookie};`,
+          );
+        }
         let body: string | undefined;
         if (spec.body !== undefined) {
           if (spec.bodyFormat === "form") {
@@ -952,15 +997,17 @@ export class SellerApiTransport {
         const origin =
           spec.origin === "seller-portal"
             ? SELLER_PORTAL_ORIGIN
-            : spec.origin === "seller-portal-api"
-              ? SELLER_PORTAL_API_ORIGIN
-              : spec.origin === "money-movement"
-                ? MONEY_MOVEMENT_ORIGIN
-                : spec.origin === "marketplace-gateway"
-                  ? MARKETPLACE_GATEWAY_ORIGIN
-                  : spec.origin === "marketplace"
-                    ? MARKETPLACE_SEARCH_ORIGIN
-                    : ORDER_MANAGEMENT_ORIGIN;
+            : spec.origin === "seller-stores"
+              ? SELLER_STORES_ORIGIN
+              : spec.origin === "seller-portal-api"
+                ? SELLER_PORTAL_API_ORIGIN
+                : spec.origin === "money-movement"
+                  ? MONEY_MOVEMENT_ORIGIN
+                  : spec.origin === "marketplace-gateway"
+                    ? MARKETPLACE_GATEWAY_ORIGIN
+                    : spec.origin === "marketplace"
+                      ? MARKETPLACE_SEARCH_ORIGIN
+                      : ORDER_MANAGEMENT_ORIGIN;
 
         const response = await this.fetchImplementation(
           new URL(spec.path, origin),

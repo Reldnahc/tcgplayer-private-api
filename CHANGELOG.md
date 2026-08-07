@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.7.0 - Unreleased
+
+- Add validated, paginated read-only seller feedback with rating, comment-only, and age filters.
+- Add aggregate star and fulfillment-question rating summaries.
+- Omit provider user keys and seller-order identifiers, and never send the seller-session cookie to the public feedback service.
+
 ## 0.6.1 - Unreleased
 
 - Detect whether the authenticated seller uses TCGplayer's legacy Payments experience or the newer Money Movement experience.
