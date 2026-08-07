@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented here.
 
+## 0.5.3 - Unreleased
+
+- Add normalized order-status codes for search summaries and order details while preserving TCGplayer's raw display labels.
+- Map unrecognized provider status labels to an explicit `Unknown` enum value instead of requiring consumers to compare display text.
+
 ## 0.5.2 - Unreleased
 
 - Preserve validated Direct product, seller, Authentication Center inventory, listing-type, and seller-program evidence from marketplace responses.

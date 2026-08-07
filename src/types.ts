@@ -33,18 +33,27 @@ export interface RequestOptions {
 }
 
 export type SellerOrderSearchRange = "LastThreeMonths";
-export type SellerOrderStatusFilter =
-  | "Canceled"
-  | "Delivered"
-  | "PickedUp"
-  | "PickupOrderCanceled"
-  | "Processing"
-  | "Pulling"
-  | "ReadyForPickup"
-  | "ReadyToShip"
-  | "Received"
-  | "Shipped"
-  | "ShippedOrderCanceled";
+export const SellerOrderStatus = {
+  Canceled: "Canceled",
+  Delivered: "Delivered",
+  PickedUp: "PickedUp",
+  PickupOrderCanceled: "PickupOrderCanceled",
+  Processing: "Processing",
+  Pulling: "Pulling",
+  ReadyForPickup: "ReadyForPickup",
+  ReadyToShip: "ReadyToShip",
+  Received: "Received",
+  Shipped: "Shipped",
+  ShippedOrderCanceled: "ShippedOrderCanceled",
+  Unknown: "Unknown",
+} as const;
+
+export type SellerOrderStatus =
+  (typeof SellerOrderStatus)[keyof typeof SellerOrderStatus];
+export type SellerOrderStatusFilter = Exclude<
+  SellerOrderStatus,
+  typeof SellerOrderStatus.Unknown
+>;
 export type SellerOrderSortField = "orderStatus" | "orderDate";
 export type SortDirection = "ascending" | "descending";
 
@@ -67,7 +76,10 @@ export interface SellerOrderSearchSummary {
   readonly orderNumber: string;
   readonly orderDate: string;
   readonly orderChannel: string;
+  /** The validated provider label, preserved verbatim for display. */
   readonly orderStatus: string;
+  /** A stable package enum derived only from observed provider status labels. */
+  readonly orderStatusCode: SellerOrderStatus;
   readonly buyerName: string;
   readonly shippingType: string;
   readonly productAmount: number;
@@ -126,7 +138,10 @@ export interface SellerOrderTrackingNumber {
 
 export interface SellerOrderDetail {
   readonly createdAt: string;
+  /** The validated provider label, preserved verbatim for display. */
   readonly status: string;
+  /** A stable package enum derived only from observed provider status labels. */
+  readonly statusCode: SellerOrderStatus;
   readonly orderChannel: string;
   readonly orderFulfillment: string;
   readonly orderNumber: string;

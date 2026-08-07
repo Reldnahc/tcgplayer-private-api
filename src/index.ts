@@ -2,6 +2,7 @@ export {
   createTcgplayerSellerClient,
   TcgplayerSellerClient,
 } from "./client.js";
+export { SellerOrderStatus } from "./types.js";
 export {
   isTcgplayerApiError,
   TcgplayerApiError,

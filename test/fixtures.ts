@@ -11,6 +11,7 @@ export const syntheticSummary: SellerOrderSearchSummary = {
   orderDate: "2026-01-02T03:04:05.000Z",
   orderChannel: "Marketplace",
   orderStatus: "ReadyToShip",
+  orderStatusCode: "ReadyToShip",
   buyerName: "Sample Buyer",
   shippingType: "Standard",
   productAmount: 12.5,
@@ -23,6 +24,7 @@ export const syntheticSummary: SellerOrderSearchSummary = {
 export const syntheticOrder: SellerOrderDetail = {
   createdAt: "2026-01-02T03:04:05.000Z",
   status: "ReadyToShip",
+  statusCode: "ReadyToShip",
   orderChannel: "Marketplace",
   orderFulfillment: "Seller",
   orderNumber: syntheticOrderNumber,

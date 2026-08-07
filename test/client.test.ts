@@ -899,6 +899,57 @@ describe("TcgplayerSellerClient", () => {
     });
   });
 
+  it("normalizes observed order display labels without replacing the raw status", async () => {
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse({
+        totalOrders: 2,
+        orders: [
+          { ...syntheticSummary, orderStatus: "Ready to Ship" },
+          { ...syntheticSummary, orderStatus: "Shipped - In Transit" },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.searchOrders({
+      sellerKey: syntheticSellerKey,
+    });
+
+    expect(result.orders).toEqual([
+      {
+        ...syntheticSummary,
+        orderStatus: "Ready to Ship",
+        orderStatusCode: "ReadyToShip",
+      },
+      {
+        ...syntheticSummary,
+        orderStatus: "Shipped - In Transit",
+        orderStatusCode: "Shipped",
+      },
+    ]);
+  });
+
+  it("returns Unknown for an unrecognized order display label", async () => {
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse({
+        totalOrders: 1,
+        orders: [
+          { ...syntheticSummary, orderStatus: "Synthetic Future State" },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.searchOrders({
+      sellerKey: syntheticSellerKey,
+    });
+
+    expect(result.orders[0]).toMatchObject({
+      orderStatus: "Synthetic Future State",
+      orderStatusCode: "Unknown",
+    });
+  });
+
   it("retrieves and validates an encoded order detail", async () => {
     const orderNumber = "synthetic/order";
     const { fetchImplementation, requests } = fetchQueue([
@@ -909,6 +960,7 @@ describe("TcgplayerSellerClient", () => {
     const order = await client.getOrder(orderNumber);
 
     expect(order.orderNumber).toBe(orderNumber);
+    expect(order.statusCode).toBe("ReadyToShip");
     expect(requests[0]?.url).toBe(
       "https://order-management-api.tcgplayer.com/orders/synthetic%2Forder?api-version=2.0",
     );

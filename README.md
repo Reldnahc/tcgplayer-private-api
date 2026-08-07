@@ -99,6 +99,11 @@ const packingSlip = await client.getPackingSlip({
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
 
+Order responses preserve TCGplayer's validated display label in `orderStatus`
+(search summaries) or `status` (details). Consumers should make decisions from
+the normalized `orderStatusCode` or `statusCode` enum instead. Unrecognized
+provider labels map to `SellerOrderStatus.Unknown`; they are never guessed.
+
 ## Fulfillment mutations
 
 Mutation methods require both a seller key and order number. The client confirms each order belongs to that seller and reads its current state before submission. Existing matching tracking and already-shipped states return `outcome: "already-applied"` without another mutation.

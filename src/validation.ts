@@ -1,4 +1,5 @@
 import { invalidResponse } from "./errors.js";
+import { SellerOrderStatus } from "./types.js";
 import type {
   DetectCarrierResult,
   MarkOrdersShippedError,
@@ -19,6 +20,24 @@ export interface ParsedMarkOrdersShippedResponse {
 }
 
 type UnknownRecord = Record<string, unknown>;
+
+const CANONICAL_ORDER_STATUSES: ReadonlySet<string> = new Set(
+  Object.values(SellerOrderStatus).filter(
+    (status) => status !== SellerOrderStatus.Unknown,
+  ),
+);
+
+function normalizeOrderStatus(label: string): SellerOrderStatus {
+  if (CANONICAL_ORDER_STATUSES.has(label)) {
+    return label as SellerOrderStatus;
+  }
+
+  // These display labels have been observed in Seller Portal responses. Add
+  // aliases only from verified responses; unknown labels must remain unknown.
+  if (label === "Ready to Ship") return SellerOrderStatus.ReadyToShip;
+  if (label === "Shipped - In Transit") return SellerOrderStatus.Shipped;
+  return SellerOrderStatus.Unknown;
+}
 
 function record(value: unknown, path: string): UnknownRecord {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -108,11 +127,13 @@ function stringArrayValue(
 
 function parseSummary(value: unknown, path: string): SellerOrderSearchSummary {
   const source = record(value, path);
+  const orderStatus = stringValue(source, "orderStatus", path);
   return {
     orderNumber: stringValue(source, "orderNumber", path),
     orderDate: stringValue(source, "orderDate", path),
     orderChannel: stringValue(source, "orderChannel", path),
-    orderStatus: stringValue(source, "orderStatus", path),
+    orderStatus,
+    orderStatusCode: normalizeOrderStatus(orderStatus),
     buyerName: stringValue(source, "buyerName", path),
     shippingType: stringValue(source, "shippingType", path),
     productAmount: numberValue(source, "productAmount", path),
@@ -216,9 +237,11 @@ export function parseSearchSellerOrdersResult(
 export function parseSellerOrderDetail(value: unknown): SellerOrderDetail {
   const path = "response";
   const source = record(value, path);
+  const status = stringValue(source, "status", path);
   return {
     createdAt: stringValue(source, "createdAt", path),
-    status: stringValue(source, "status", path),
+    status,
+    statusCode: normalizeOrderStatus(status),
     orderChannel: stringValue(source, "orderChannel", path),
     orderFulfillment: stringValue(source, "orderFulfillment", path),
     orderNumber: stringValue(source, "orderNumber", path),
