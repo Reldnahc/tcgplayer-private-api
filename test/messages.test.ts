@@ -58,11 +58,25 @@ const threadSummary = {
   isTrashed: false,
 };
 
+const unlinkedThreadSummary = {
+  ...threadSummary,
+  threadId: 124,
+  unreadMessageCount: 0,
+  totalMessageCount: 1,
+  subject: "Synthetic account question",
+  orderType: null,
+  orderNumber: null,
+  orderStatus: null,
+};
+
 describe("seller messages", () => {
   it("reads the inbox, unread count, and thread detail without mutations", async () => {
     const { fetchImplementation, requests } = fetchQueue([
       jsonResponse({
-        result: { totalResults: 1, results: [threadSummary] },
+        result: {
+          totalResults: 2,
+          results: [threadSummary, unlinkedThreadSummary],
+        },
         message: null,
         status: 200,
       }),
@@ -85,8 +99,8 @@ describe("seller messages", () => {
               isRead: false,
             },
           ],
-          orderType: "SellerOrder",
-          orderNumber: "SYNTHETIC-ORDER-1",
+          orderType: null,
+          orderNumber: null,
           isTrashed: false,
         },
         message: null,
@@ -104,7 +118,7 @@ describe("seller messages", () => {
         includeDeleted: true,
       }),
     ).resolves.toEqual({
-      totalThreads: 1,
+      totalThreads: 2,
       page: 2,
       pageSize: 10,
       threads: [
@@ -118,6 +132,19 @@ describe("seller messages", () => {
           orderType: "SellerOrder",
           orderNumber: "SYNTHETIC-ORDER-1",
           orderStatus: "Shipped",
+          createdAt: "2026-08-01T12:00:00.000Z",
+          deleted: false,
+        },
+        {
+          threadId: 124,
+          unreadMessageCount: 0,
+          totalMessageCount: 1,
+          sender: "Synthetic Buyer",
+          receiver: "me",
+          subject: "Synthetic account question",
+          orderType: "",
+          orderNumber: "",
+          orderStatus: "",
           createdAt: "2026-08-01T12:00:00.000Z",
           deleted: false,
         },
@@ -143,8 +170,8 @@ describe("seller messages", () => {
           isRead: false,
         },
       ],
-      orderType: "SellerOrder",
-      orderNumber: "SYNTHETIC-ORDER-1",
+      orderType: "",
+      orderNumber: "",
       deleted: false,
       page: 1,
       pageSize: 25,

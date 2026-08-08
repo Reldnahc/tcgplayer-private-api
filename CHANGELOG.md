@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.8.1 - Unreleased
+
+- Accept message conversations without linked order metadata and normalize their nullable order fields to empty strings.
+
 ## 0.8.0 - Unreleased
 
 - Add validated, paginated read-only seller message inbox and thread-detail retrieval.

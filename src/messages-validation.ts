@@ -76,6 +76,17 @@ function text(
   return value;
 }
 
+function optionalText(
+  source: UnknownRecord,
+  key: string,
+  path: string,
+  maximumLength: number,
+): string {
+  const value = source[key];
+  if (value === undefined || value === null) return "";
+  return text(source, key, path, maximumLength, true);
+}
+
 function timestamp(source: UnknownRecord, key: string, path: string): string {
   const value = text(source, key, path, 128);
   if (!Number.isFinite(Date.parse(value))) {
@@ -129,9 +140,9 @@ function threadSummary(
     sender: text(source, "sender", path, 512),
     receiver: text(source, "receiver", path, 512),
     subject: text(source, "subject", path, 2_000),
-    orderType: text(source, "orderType", path, 128, true),
-    orderNumber: text(source, "orderNumber", path, 256, true),
-    orderStatus: text(source, "orderStatus", path, 128, true),
+    orderType: optionalText(source, "orderType", path, 128),
+    orderNumber: optionalText(source, "orderNumber", path, 256),
+    orderStatus: optionalText(source, "orderStatus", path, 128),
     createdAt: timestamp(source, "createdAt", path),
     ...(respondedAt === undefined ? {} : { respondedAt }),
     ...(activeEscalationAsOf === undefined ? {} : { activeEscalationAsOf }),
@@ -214,8 +225,8 @@ export function parseSellerMessageThread(
     ...(activeEscalationAsOf === undefined ? {} : { activeEscalationAsOf }),
     totalMessageCount,
     messages,
-    orderType: text(result, "orderType", "response.result", 128, true),
-    orderNumber: text(result, "orderNumber", "response.result", 256, true),
+    orderType: optionalText(result, "orderType", "response.result", 128),
+    orderNumber: optionalText(result, "orderNumber", "response.result", 256),
     deleted: booleanValue(result, "isTrashed", "response.result"),
     page,
     pageSize,
