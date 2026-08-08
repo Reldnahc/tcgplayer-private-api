@@ -14,6 +14,7 @@ const SELLER_PORTAL_ORIGIN = "https://store.tcgplayer.com";
 const MARKETPLACE_SEARCH_ORIGIN = "https://mp-search-api.tcgplayer.com";
 const MARKETPLACE_GATEWAY_ORIGIN = "https://mpgateway.tcgplayer.com";
 const MONEY_MOVEMENT_ORIGIN = "https://money-movement.tcgplayer.com";
+const MESSAGES_API_ORIGIN = "https://messages-api.tcgplayer.com";
 const SELLER_PORTAL_API_ORIGIN = "https://sp-api.tcgplayer.com";
 const SELLER_STORES_ORIGIN = "https://seller-stores-backend.tcgplayer.com";
 const DEFAULT_USER_AGENT = "tcgplayer-private-api";
@@ -55,6 +56,7 @@ interface RequestSpec {
     | "marketplace"
     | "marketplace-gateway"
     | "money-movement"
+    | "messages-api"
     | "seller-portal-api"
     | "seller-stores";
   readonly accept:
@@ -653,6 +655,72 @@ export class SellerApiTransport {
     }
   }
 
+  async sellerPortalMessagesJson(
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    return this.authenticatedJson(
+      path,
+      "seller-portal",
+      "seller message",
+      signal,
+    );
+  }
+
+  async messagesApiJson(path: string, signal?: AbortSignal): Promise<unknown> {
+    return this.authenticatedJson(
+      path,
+      "messages-api",
+      "seller message count",
+      signal,
+    );
+  }
+
+  private async authenticatedJson(
+    path: string,
+    origin: "seller-portal" | "messages-api",
+    description: string,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    const result = await this.request({
+      method: "GET",
+      path,
+      origin,
+      accept: "application/json",
+      retryMode: "safe",
+      ...(signal === undefined ? {} : { signal }),
+    });
+    const { response, bytes } = result;
+    if (result.contentType === "text/html") {
+      throw new TcgplayerApiError(
+        "AUTHENTICATION_REQUIRED",
+        `TCGplayer returned an HTML page instead of ${description} data. Refresh the authorized session.`,
+        errorOptions(response),
+      );
+    }
+    if (
+      result.contentType !== "application/json" &&
+      !result.contentType.endsWith("+json")
+    ) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        `TCGplayer returned an unexpected ${description} response.`,
+        errorOptions(response),
+      );
+    }
+    try {
+      return JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      ) as unknown;
+    } catch (error) {
+      throw new TcgplayerApiError(
+        "INVALID_RESPONSE",
+        `TCGplayer returned malformed ${description} JSON.`,
+        { ...errorOptions(response), cause: error },
+      );
+    }
+  }
+
   async sellerFeedbackJson(
     path: string,
     signal?: AbortSignal,
@@ -997,17 +1065,19 @@ export class SellerApiTransport {
         const origin =
           spec.origin === "seller-portal"
             ? SELLER_PORTAL_ORIGIN
-            : spec.origin === "seller-stores"
-              ? SELLER_STORES_ORIGIN
-              : spec.origin === "seller-portal-api"
-                ? SELLER_PORTAL_API_ORIGIN
-                : spec.origin === "money-movement"
-                  ? MONEY_MOVEMENT_ORIGIN
-                  : spec.origin === "marketplace-gateway"
-                    ? MARKETPLACE_GATEWAY_ORIGIN
-                    : spec.origin === "marketplace"
-                      ? MARKETPLACE_SEARCH_ORIGIN
-                      : ORDER_MANAGEMENT_ORIGIN;
+            : spec.origin === "messages-api"
+              ? MESSAGES_API_ORIGIN
+              : spec.origin === "seller-stores"
+                ? SELLER_STORES_ORIGIN
+                : spec.origin === "seller-portal-api"
+                  ? SELLER_PORTAL_API_ORIGIN
+                  : spec.origin === "money-movement"
+                    ? MONEY_MOVEMENT_ORIGIN
+                    : spec.origin === "marketplace-gateway"
+                      ? MARKETPLACE_GATEWAY_ORIGIN
+                      : spec.origin === "marketplace"
+                        ? MARKETPLACE_SEARCH_ORIGIN
+                        : ORDER_MANAGEMENT_ORIGIN;
 
         const response = await this.fetchImplementation(
           new URL(spec.path, origin),

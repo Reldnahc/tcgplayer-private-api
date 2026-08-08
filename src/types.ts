@@ -32,6 +32,70 @@ export interface RequestOptions {
   readonly signal?: AbortSignal;
 }
 
+export interface ListSellerMessageThreadsInput {
+  readonly sellerKey: string;
+  /** One-based page number. */
+  readonly page?: number;
+  readonly pageSize?: number;
+  /** Optional exact seller order number filter. */
+  readonly orderNumber?: string;
+  /** Include threads deleted in the Seller Portal. */
+  readonly includeDeleted?: boolean;
+}
+
+export interface GetSellerMessageThreadInput {
+  readonly sellerKey: string;
+  readonly threadId: number;
+  /** One-based message page number. */
+  readonly page?: number;
+  readonly pageSize?: number;
+}
+
+export interface SellerMessageThreadSummary {
+  readonly threadId: number;
+  readonly unreadMessageCount: number;
+  readonly totalMessageCount: number;
+  readonly sender: string;
+  readonly receiver: string;
+  readonly subject: string;
+  readonly orderType: string;
+  readonly orderNumber: string;
+  readonly orderStatus: string;
+  readonly createdAt: string;
+  readonly respondedAt?: string;
+  readonly activeEscalationAsOf?: string;
+  readonly deleted: boolean;
+}
+
+export interface ListSellerMessageThreadsResult {
+  readonly totalThreads: number;
+  readonly page: number;
+  readonly pageSize: number;
+  readonly threads: readonly SellerMessageThreadSummary[];
+}
+
+export interface SellerMessage {
+  readonly messageId: number;
+  readonly body: string;
+  readonly createdAt: string;
+  readonly sender: string;
+  readonly responseRequired: boolean;
+  readonly isRead: boolean;
+}
+
+export interface SellerMessageThread {
+  readonly threadId: number;
+  readonly subject: string;
+  readonly activeEscalationAsOf?: string;
+  readonly totalMessageCount: number;
+  readonly messages: readonly SellerMessage[];
+  readonly orderType: string;
+  readonly orderNumber: string;
+  readonly deleted: boolean;
+  readonly page: number;
+  readonly pageSize: number;
+}
+
 export const SellerPayoutStatus = {
   Staged: "Staged",
   InReview: "InReview",

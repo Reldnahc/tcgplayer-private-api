@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.8.0 - Unreleased
+
+- Add validated, paginated read-only seller message inbox and thread-detail retrieval.
+- Add the authenticated seller's unread-message count for application notification badges.
+- Keep replies, read-state changes, deletion, resolution, and escalation outside the public contract.
+
 ## 0.7.2 - Unreleased
 
 - Report validated seller-inventory page and product counts through an optional progress callback without adding marketplace requests.

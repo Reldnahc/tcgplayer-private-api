@@ -1,6 +1,6 @@
 # tcgplayer-private-api
 
-An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, catalog and seller-inventory reads, price-only listing updates, positive live-inventory additions, and read-only seller payouts without exposing raw private endpoints.
+An unofficial server-side npm client for authorized TCGplayer seller operations. It supports order discovery, packing slips, pull sheets, carrier detection, tracking submission, shipment status updates, catalog and seller-inventory reads, price-only listing updates, positive live-inventory additions, and read-only seller payouts, feedback, and messages without exposing raw private endpoints.
 
 This project is not affiliated with, endorsed by, or supported by TCGplayer. The seller interface is undocumented and can change without notice. Review the agreements and policies that apply to your account before using it.
 
@@ -105,6 +105,9 @@ const packingSlip = await client.getPackingSlip({
 - `getSellerUnpaidBalance(input, options?)`
 - `listSellerFeedback(input, options?)`
 - `getSellerFeedbackAggregation(input, options?)`
+- `listSellerMessageThreads(input, options?)`
+- `getSellerMessageThread(input, options?)`
+- `getSellerUnreadMessageCount(options?)`
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
 
@@ -112,6 +115,27 @@ Order responses preserve TCGplayer's validated display label in `orderStatus`
 (search summaries) or `status` (details). Consumers should make decisions from
 the normalized `orderStatusCode` or `statusCode` enum instead. Unrecognized
 provider labels map to `SellerOrderStatus.Unknown`; they are never guessed.
+
+## Read-only seller messages
+
+Message reads use the authenticated seller's current Seller Portal session. Inbox and thread pages are seller-scoped and paginated; the separate unread-count method is scoped by the authenticated session.
+
+```ts
+const inbox = await client.listSellerMessageThreads({
+  sellerKey: "your-seller-key",
+  page: 1,
+  pageSize: 25,
+});
+
+const unreadCount = await client.getSellerUnreadMessageCount();
+
+const thread = await client.getSellerMessageThread({
+  sellerKey: "your-seller-key",
+  threadId: inbox.threads[0].threadId,
+});
+```
+
+These methods only issue GET requests. Retrieving thread detail does not call TCGplayer's separate mark-as-read action. Replies, read-state changes, deletion, resolution, and escalation are deliberately absent from this package contract.
 
 ## Read-only seller payments
 

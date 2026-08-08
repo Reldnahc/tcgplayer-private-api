@@ -16,6 +16,11 @@ import {
   parseMarketplaceProducts,
 } from "./marketplace-validation.js";
 import {
+  parseSellerMessageThread,
+  parseSellerMessageThreads,
+  parseSellerUnreadMessageCount,
+} from "./messages-validation.js";
+import {
   parseLegacySellerPayments,
   parseLegacyUpcomingSellerPayments,
   parseSellerPaymentExperience,
@@ -36,6 +41,7 @@ import type {
   ExportPullSheetInput,
   GetSellerPaymentExperienceInput,
   GetSellerFeedbackAggregationInput,
+  GetSellerMessageThreadInput,
   GetSellerPayoutInput,
   GetSellerUnpaidBalanceInput,
   GetPackingSlipInput,
@@ -46,6 +52,8 @@ import type {
   ListSellerInventoryOptions,
   ListSellerFeedbackInput,
   ListSellerFeedbackResult,
+  ListSellerMessageThreadsInput,
+  ListSellerMessageThreadsResult,
   ListLegacySellerPaymentsInput,
   ListLegacySellerPaymentsResult,
   ListLegacyUpcomingSellerPaymentsResult,
@@ -70,6 +78,7 @@ import type {
   SellerInventoryRemoval,
   SellerPaymentExperience,
   SellerFeedbackAggregation,
+  SellerMessageThread,
   SellerPayoutDetail,
   SellerPayoutStatus,
   SellerUnpaidBalance,
@@ -97,6 +106,8 @@ const LEGACY_SELLER_PAYMENTS_PATH = "/admin/payment/sellerpayment";
 const LEGACY_UPCOMING_PAYMENTS_PATH = "/admin/payment/loadpendingpayments?r=0";
 const SELLER_FEEDBACK_PATH = "/sf/sellerorderfeedback/";
 const SELLER_FEEDBACK_AGGREGATION_PATH = "/sf/sellerorderfeedback/aggregation/";
+const SELLER_MESSAGES_PATH = "/admin/sp-msg-api";
+const SELLER_UNREAD_MESSAGE_COUNT_PATH = "/messages/unread-count";
 const MARKETPLACE_SEARCH_PATH = "/v1/search/request";
 const MARKETPLACE_PRODUCT_LISTINGS_PATH = "/v1/product";
 const MARKETPLACE_PRODUCT_PATH = "/v2/product";
@@ -553,6 +564,75 @@ export class TcgplayerSellerClient {
       requestSignal(options),
     );
     return parseSellerFeedbackAggregation(response);
+  }
+
+  async listSellerMessageThreads(
+    input: ListSellerMessageThreadsInput,
+    options?: RequestOptions,
+  ): Promise<ListSellerMessageThreadsResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Seller message search input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const page = boundedInteger("page", input.page, 1, 1, 1_000_000);
+    const pageSize = boundedInteger("pageSize", input.pageSize, 25, 1, 100);
+    const orderNumber =
+      input.orderNumber === undefined
+        ? undefined
+        : requiredText("orderNumber", input.orderNumber, 256);
+    if (
+      input.includeDeleted !== undefined &&
+      typeof input.includeDeleted !== "boolean"
+    ) {
+      throw invalidArgument("includeDeleted must be a boolean.");
+    }
+    const query = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+    });
+    if (orderNumber !== undefined) query.set("orderNumber", orderNumber);
+    if (input.includeDeleted === true) query.set("includeAllThreads", "true");
+    const response = await this.transport.sellerPortalMessagesJson(
+      `${SELLER_MESSAGES_PATH}/${encodeURIComponent(sellerKey)}/threads?${query.toString()}`,
+      requestSignal(options),
+    );
+    return parseSellerMessageThreads(response, page, pageSize);
+  }
+
+  async getSellerMessageThread(
+    input: GetSellerMessageThreadInput,
+    options?: RequestOptions,
+  ): Promise<SellerMessageThread> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("Seller message thread input is required.");
+    }
+    const sellerKey = requiredText("sellerKey", input.sellerKey, 256);
+    const threadId = boundedInteger(
+      "threadId",
+      input.threadId,
+      0,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const page = boundedInteger("page", input.page, 1, 1, 1_000_000);
+    const pageSize = boundedInteger("pageSize", input.pageSize, 25, 1, 100);
+    const query = new URLSearchParams({
+      messagesPage: String(page),
+      messagesPageSize: String(pageSize),
+    });
+    const response = await this.transport.sellerPortalMessagesJson(
+      `${SELLER_MESSAGES_PATH}/${encodeURIComponent(sellerKey)}/threads/${String(threadId)}?${query.toString()}`,
+      requestSignal(options),
+    );
+    return parseSellerMessageThread(response, threadId, page, pageSize);
+  }
+
+  async getSellerUnreadMessageCount(options?: RequestOptions): Promise<number> {
+    const response = await this.transport.messagesApiJson(
+      SELLER_UNREAD_MESSAGE_COUNT_PATH,
+      requestSignal(options),
+    );
+    return parseSellerUnreadMessageCount(response);
   }
 
   async listSellerPayouts(
