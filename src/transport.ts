@@ -2,9 +2,11 @@ import {
   invalidArgument,
   isTcgplayerApiError,
   TcgplayerApiError,
+  type TcgplayerApiErrorOptions,
 } from "./errors.js";
 import type {
   RetryOptions,
+  TcgplayerAuthenticationRequiredHandler,
   TcgplayerSession,
   TcgplayerSessionProvider,
 } from "./types.js";
@@ -30,6 +32,7 @@ function containsControlCharacter(value: string): boolean {
 
 interface TransportOptions {
   readonly session: TcgplayerSession | TcgplayerSessionProvider;
+  readonly onAuthenticationRequired?: TcgplayerAuthenticationRequiredHandler;
   readonly fetch?: typeof globalThis.fetch;
   readonly timeoutMs?: number;
   readonly requestDelayMs?: number;
@@ -381,6 +384,7 @@ export class SellerApiTransport {
   private readonly maxTextResponseBytes: number;
   private readonly retry: NormalizedRetryOptions;
   private readonly gate: RequestStartGate;
+  private readonly authenticationNotifications = new WeakSet<object>();
 
   constructor(private readonly options: TransportOptions) {
     this.fetchImplementation = options.fetch ?? globalThis.fetch;
@@ -444,8 +448,7 @@ export class SellerApiTransport {
     const { response, bytes } = result;
     const type = result.contentType;
     if (type === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned an HTML page instead of seller API data. Refresh the authorized session.",
         errorOptions(response),
       );
@@ -564,8 +567,7 @@ export class SellerApiTransport {
     });
     const { response, bytes } = result;
     if (result.contentType === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned an HTML page instead of seller payout data. Refresh the authorized session.",
         errorOptions(response),
       );
@@ -626,8 +628,7 @@ export class SellerApiTransport {
     });
     const { response, bytes } = result;
     if (result.contentType === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned an HTML page instead of account capability data. Refresh the authorized session.",
         errorOptions(response),
       );
@@ -692,8 +693,7 @@ export class SellerApiTransport {
     });
     const { response, bytes } = result;
     if (result.contentType === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         `TCGplayer returned an HTML page instead of ${description} data. Refresh the authorized session.`,
         errorOptions(response),
       );
@@ -792,8 +792,7 @@ export class SellerApiTransport {
       /(?:login|signin)\.tcgplayer\.com/iu.test(value) ||
       /<input\b[^>]*\btype=["']password["']/iu.test(value)
     ) {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned a login page instead of legacy payment data. Refresh the authorized session.",
         errorOptions(response),
       );
@@ -817,8 +816,7 @@ export class SellerApiTransport {
     const { response, bytes } = result;
     const type = result.contentType;
     if (type === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned an HTML page instead of a packing slip. Refresh the authorized session.",
         errorOptions(response),
       );
@@ -859,8 +857,7 @@ export class SellerApiTransport {
     });
     const { response, bytes } = result;
     if (result.contentType === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned an HTML page instead of seller export data. Refresh the authorized session.",
         errorOptions(response),
       );
@@ -902,8 +899,7 @@ export class SellerApiTransport {
       ...(signal === undefined ? {} : { signal }),
     });
     if (result.contentType === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned an HTML page for a fulfillment mutation. Refresh the authorized session and reconcile the order.",
         errorOptions(result.response),
       );
@@ -927,8 +923,7 @@ export class SellerApiTransport {
       ...(signal === undefined ? {} : { signal }),
     });
     if (result.contentType === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned an HTML page for a seller mutation. Refresh the authorized session and reconcile the affected resource.",
         errorOptions(result.response),
       );
@@ -968,8 +963,7 @@ export class SellerApiTransport {
     }
     const { response, bytes } = result;
     if (result.contentType === "text/html") {
-      throw new TcgplayerApiError(
-        "AUTHENTICATION_REQUIRED",
+      throw this.authenticationRequired(
         "TCGplayer returned an HTML page for a fulfillment mutation. Refresh the authorized session and reconcile the order.",
         errorOptions(response),
       );
@@ -1004,13 +998,48 @@ export class SellerApiTransport {
           : this.options.session;
       return validateSession(value);
     } catch (error) {
-      if (isTcgplayerApiError(error)) throw error;
-      throw new TcgplayerApiError(
+      if (isTcgplayerApiError(error)) {
+        this.notifyAuthenticationRequired(error);
+        throw error;
+      }
+      const authenticationError = new TcgplayerApiError(
         "AUTHENTICATION_REQUIRED",
         "The seller session provider failed.",
         { cause: error },
       );
+      this.notifyAuthenticationRequired(authenticationError);
+      throw authenticationError;
     }
+  }
+
+  private notifyAuthenticationRequired(error: TcgplayerApiError): void {
+    if (
+      error.code !== "AUTHENTICATION_REQUIRED" ||
+      this.authenticationNotifications.has(error)
+    ) {
+      return;
+    }
+    this.authenticationNotifications.add(error);
+    try {
+      const result = this.options.onAuthenticationRequired?.(error);
+      if (result !== undefined)
+        void Promise.resolve(result).catch(() => undefined);
+    } catch {
+      // An observer must never replace the request's authentication error.
+    }
+  }
+
+  private authenticationRequired(
+    message: string,
+    options: TcgplayerApiErrorOptions,
+  ): TcgplayerApiError {
+    const error = new TcgplayerApiError(
+      "AUTHENTICATION_REQUIRED",
+      message,
+      options,
+    );
+    this.notifyAuthenticationRequired(error);
+    return error;
   }
 
   private async request(spec: RequestSpec): Promise<RawResponse> {
@@ -1137,7 +1166,10 @@ export class SellerApiTransport {
           contentType: contentType(response),
         };
       } catch (error) {
-        if (isTcgplayerApiError(error)) throw error;
+        if (isTcgplayerApiError(error)) {
+          this.notifyAuthenticationRequired(error);
+          throw error;
+        }
         if (spec.signal?.aborted) {
           throw spec.retryMode === "never"
             ? new TcgplayerApiError(

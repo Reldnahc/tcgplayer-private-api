@@ -1793,11 +1793,44 @@ describe("TcgplayerSellerClient", () => {
         headers: { "content-type": "text/html" },
       }),
     ]);
-    const client = clientWith(fetchImplementation);
+    const onAuthenticationRequired = vi.fn();
+    const client = clientWith(fetchImplementation, {
+      onAuthenticationRequired,
+    });
 
     await expect(client.getOrder(syntheticOrderNumber)).rejects.toMatchObject({
       code: "AUTHENTICATION_REQUIRED",
     });
+    expect(onAuthenticationRequired).toHaveBeenCalledOnce();
+  });
+
+  it("notifies the caller when the current session requires authentication", async () => {
+    const { fetchImplementation } = fetchQueue([jsonResponse({}, 401)]);
+    const onAuthenticationRequired = vi.fn();
+    const client = clientWith(fetchImplementation, {
+      onAuthenticationRequired,
+    });
+
+    await expect(
+      client.searchOrders({ sellerKey: syntheticSellerKey }),
+    ).rejects.toMatchObject({ code: "AUTHENTICATION_REQUIRED" });
+    expect(onAuthenticationRequired).toHaveBeenCalledOnce();
+    expect(onAuthenticationRequired).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "AUTHENTICATION_REQUIRED" }),
+    );
+  });
+
+  it("does not let an authentication observer replace the request error", async () => {
+    const { fetchImplementation } = fetchQueue([jsonResponse({}, 401)]);
+    const client = clientWith(fetchImplementation, {
+      onAuthenticationRequired: () => {
+        throw new Error("synthetic observer failure");
+      },
+    });
+
+    await expect(
+      client.searchOrders({ sellerKey: syntheticSellerKey }),
+    ).rejects.toMatchObject({ code: "AUTHENTICATION_REQUIRED" });
   });
 
   it("rejects a full Cookie header before sending a request", async () => {

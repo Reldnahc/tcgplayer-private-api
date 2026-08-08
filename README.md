@@ -59,6 +59,20 @@ const client = createTcgplayerSellerClient({
 });
 ```
 
+Applications with replaceable credentials can also observe definitive session
+expiration without wrapping every client method:
+
+```ts
+const client = createTcgplayerSellerClient({
+  session: () => sessionStore.current(),
+  onAuthenticationRequired: (error) => sessionStore.expire(error),
+});
+```
+
+The observer does not refresh or persist credentials. It is a notification
+boundary for the caller, and an observer failure never replaces the original
+`AUTHENTICATION_REQUIRED` error.
+
 Validate the current session and discover its seller key without any prior account configuration:
 
 ```ts

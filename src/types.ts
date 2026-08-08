@@ -1,3 +1,5 @@
+import type { TcgplayerApiError } from "./errors.js";
+
 export type Awaitable<T> = T | PromiseLike<T>;
 
 export interface TcgplayerSession {
@@ -9,6 +11,10 @@ export interface TcgplayerSession {
 
 export type TcgplayerSessionProvider = () => Awaitable<TcgplayerSession>;
 
+export type TcgplayerAuthenticationRequiredHandler = (
+  error: TcgplayerApiError,
+) => Awaitable<void>;
+
 export interface RetryOptions {
   /** Number of retries after the initial request. */
   readonly maxRetries?: number;
@@ -18,6 +24,8 @@ export interface RetryOptions {
 
 export interface TcgplayerSellerClientOptions {
   readonly session: TcgplayerSession | TcgplayerSessionProvider;
+  /** Called when the client determines that the current seller session cannot authenticate. */
+  readonly onAuthenticationRequired?: TcgplayerAuthenticationRequiredHandler;
   /** Injectable for deterministic tests. Production requests always target TCGplayer. */
   readonly fetch?: typeof globalThis.fetch;
   readonly timeoutMs?: number;

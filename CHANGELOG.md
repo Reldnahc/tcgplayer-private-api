@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.10.0 - Unreleased
+
+- Add an optional authentication-required observer so applications can expire a
+  shared credential, pause work, and request an operator-owned browser renewal.
+- Keep observer failures isolated from the original typed authentication error.
+
 ## 0.9.0 - Unreleased
 
 - Add a read-only authenticated-seller identity method so consumers can validate a session and discover its seller key without prior account configuration.

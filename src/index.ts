@@ -101,6 +101,7 @@ export type {
   ShipOrderWithoutTrackingInput,
   SortDirection,
   TcgplayerSellerClientOptions,
+  TcgplayerAuthenticationRequiredHandler,
   TcgplayerSession,
   TcgplayerSessionProvider,
   UpdateSellerPricesInput,
