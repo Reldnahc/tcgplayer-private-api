@@ -32,6 +32,10 @@ export interface RequestOptions {
   readonly signal?: AbortSignal;
 }
 
+export interface AuthenticatedSeller {
+  readonly sellerKey: string;
+}
+
 export interface ListSellerMessageThreadsInput {
   readonly sellerKey: string;
   /** One-based page number. */

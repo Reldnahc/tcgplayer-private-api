@@ -1,5 +1,6 @@
 import { invalidResponse } from "./errors.js";
 import type {
+  AuthenticatedSeller,
   LegacySellerPayment,
   ListLegacySellerPaymentsResult,
   ListLegacyUpcomingSellerPaymentsResult,
@@ -423,21 +424,34 @@ export function parseSellerPaymentExperience(
   value: unknown,
   expectedSellerKey: string,
 ): SellerPaymentExperience {
-  const source = record(value, "response");
-  const seller = record(source["seller"], "response.seller");
-  const sellerKey = stringValue(seller, "sellerKey", "response.seller");
+  const { sellerKey, features } = parseAuthenticatedSellerDetails(value);
   if (sellerKey.toLowerCase() !== expectedSellerKey.toLowerCase()) {
     throw invalidResponse(
       "TCGplayer returned account capabilities for a different seller.",
     );
   }
+  return features.includes(PAYMENTS_EPS_FEATURE) ? "money-movement" : "legacy";
+}
+
+export function parseAuthenticatedSeller(value: unknown): AuthenticatedSeller {
+  const { sellerKey } = parseAuthenticatedSellerDetails(value);
+  return { sellerKey };
+}
+
+function parseAuthenticatedSellerDetails(value: unknown): {
+  readonly sellerKey: string;
+  readonly features: readonly string[];
+} {
+  const source = record(value, "response");
+  const seller = record(source["seller"], "response.seller");
+  const sellerKey = stringValue(seller, "sellerKey", "response.seller");
   const features = array(source["features"], "response.features");
   if (!features.every((feature) => typeof feature === "string")) {
     throw invalidResponse(
       "Expected string feature names at response.features.",
     );
   }
-  return features.includes(PAYMENTS_EPS_FEATURE) ? "money-movement" : "legacy";
+  return { sellerKey, features: features as string[] };
 }
 
 export function parseLegacySellerPayments(

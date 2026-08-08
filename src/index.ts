@@ -17,6 +17,7 @@ export type {
   AddSellerInventoryInput,
   AddSellerInventoryResult,
   AddOrderTrackingInput,
+  AuthenticatedSeller,
   CatalogProductDetails,
   CatalogProductLineFacet,
   CatalogProductSku,

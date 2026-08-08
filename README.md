@@ -59,6 +59,13 @@ const client = createTcgplayerSellerClient({
 });
 ```
 
+Validate the current session and discover its seller key without any prior account configuration:
+
+```ts
+const seller = await client.getAuthenticatedSeller();
+// seller.sellerKey is validated but should still be treated as account metadata.
+```
+
 ## Confirm an order and retrieve its packing slip
 
 ```ts
@@ -97,6 +104,7 @@ const packingSlip = await client.getPackingSlip({
 - `updateSellerPrices(input, options?)`
 - `addSellerInventory(input, options?)`
 - `removeSellerInventory(input, options?)`
+- `getAuthenticatedSeller(options?)`
 - `getSellerPaymentExperience(input, options?)`
 - `listLegacySellerPayments(input?, options?)`
 - `listLegacyUpcomingSellerPayments(options?)`

@@ -271,6 +271,12 @@ describe("TcgplayerSellerClient", () => {
   });
 
   it("detects the seller payment experience from validated account capabilities", async () => {
+    const identity = fetchQueue([
+      jsonResponse({
+        features: ["Synthetic Feature"],
+        seller: { sellerKey: syntheticSellerKey },
+      }),
+    ]);
     const legacy = fetchQueue([
       jsonResponse({
         features: ["Synthetic Feature"],
@@ -285,6 +291,9 @@ describe("TcgplayerSellerClient", () => {
     ]);
 
     await expect(
+      clientWith(identity.fetchImplementation).getAuthenticatedSeller(),
+    ).resolves.toEqual({ sellerKey: syntheticSellerKey });
+    await expect(
       clientWith(legacy.fetchImplementation).getSellerPaymentExperience({
         sellerKey: syntheticSellerKey,
       }),
@@ -295,6 +304,9 @@ describe("TcgplayerSellerClient", () => {
       }),
     ).resolves.toBe("money-movement");
     expect(legacy.requests[0]?.url).toBe(
+      "https://sp-api.tcgplayer.com/Account/auth-detail?api-version=1.0",
+    );
+    expect(identity.requests[0]?.url).toBe(
       "https://sp-api.tcgplayer.com/Account/auth-detail?api-version=1.0",
     );
   });

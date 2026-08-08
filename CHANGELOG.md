@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.9.0 - Unreleased
+
+- Add a read-only authenticated-seller identity method so consumers can validate a session and discover its seller key without prior account configuration.
+
 ## 0.8.2 - Unreleased
 
 - Preserve legacy upcoming-payment rows that TCGplayer labels `Not Scheduled` and represent their unavailable dates as `null`.

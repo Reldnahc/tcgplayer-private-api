@@ -21,6 +21,7 @@ import {
   parseSellerUnreadMessageCount,
 } from "./messages-validation.js";
 import {
+  parseAuthenticatedSeller,
   parseLegacySellerPayments,
   parseLegacyUpcomingSellerPayments,
   parseSellerPaymentExperience,
@@ -33,6 +34,7 @@ import type {
   AddSellerInventoryInput,
   AddSellerInventoryResult,
   AddOrderTrackingInput,
+  AuthenticatedSeller,
   CatalogProductDetails,
   ConfirmedSellerOrder,
   ConfirmSellerOrderInput,
@@ -432,6 +434,16 @@ export class TcgplayerSellerClient {
       throw invalidArgument("Client options are required.");
     }
     this.transport = new SellerApiTransport(options);
+  }
+
+  async getAuthenticatedSeller(
+    options?: RequestOptions,
+  ): Promise<AuthenticatedSeller> {
+    const response = await this.transport.sellerPortalApiJson(
+      "/Account/auth-detail?api-version=1.0",
+      requestSignal(options),
+    );
+    return parseAuthenticatedSeller(response);
   }
 
   async getSellerPaymentExperience(
