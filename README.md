@@ -163,7 +163,7 @@ if (experience === "legacy") {
 }
 ```
 
-USD amounts are returned as integer minor units (cents). Legacy calendar dates are normalized to `YYYY-MM-DD`; Money Movement timestamps and provider status labels are preserved after validation. Optional target-currency metadata uses major units because that is how the newer Seller Portal formats those fields. Read-only payment requests use the same bounded retry behavior as other reads.
+USD amounts are returned as integer minor units (cents). Legacy calendar dates are normalized to `YYYY-MM-DD`; an upcoming row labeled `Not Scheduled` has `null` arrival and initiation dates so its financial totals remain visible without an invented date. Money Movement timestamps and provider status labels are preserved after validation. Optional target-currency metadata uses major units because that is how the newer Seller Portal formats those fields. Read-only payment requests use the same bounded retry behavior as other reads.
 
 ## Read-only seller feedback
 

@@ -324,11 +324,16 @@ describe("TcgplayerSellerClient", () => {
     const history = `<h2>Past Payment History</h2>${legacyPaymentTable(row)}
       <a href="/admin/payment/sellerpayment?page=2">2</a>
       <a href="/admin/payment/sellerpayment?page=3">3</a>`;
+    const unscheduledRow = `<tr>
+      <td>Not Scheduled *</td><td>Not Scheduled</td><td>2</td>
+      <td>$4.00</td><td>$0.40</td><td>$0.00</td>
+      <td>$0.00</td><td>$0.00</td><td>$3.60</td>
+    </tr>`;
     const { fetchImplementation, requests } = fetchQueue([
       htmlResponse(history),
       htmlResponse(
         legacyPaymentTable(
-          `${row}<tr id="totals-row"><td>Totals</td><td>1,234</td><td>$1,250.50</td><td>$125.25</td><td>$20.00</td><td>$2.00</td><td>-</td><td>$1,107.25</td><td></td></tr>`,
+          `${unscheduledRow}${row}<tr id="totals-row"><td>Totals</td><td>1,236</td><td>$1,254.50</td><td>$125.65</td><td>$20.00</td><td>$2.00</td><td>-</td><td>$1,110.85</td><td></td></tr>`,
         ),
       ),
     ]);
@@ -355,6 +360,17 @@ describe("TcgplayerSellerClient", () => {
     );
     await expect(client.listLegacyUpcomingSellerPayments()).resolves.toEqual({
       payments: [
+        {
+          estimatedArrivalDate: null,
+          initiatedDate: null,
+          ordersCount: 2,
+          totalSales: 400,
+          totalFees: 40,
+          refundedOrders: 0,
+          refundedFees: 0,
+          adjustments: 0,
+          amount: 360,
+        },
         expect.objectContaining({
           estimatedArrivalDate: "2026-08-12",
           amount: 110_725,

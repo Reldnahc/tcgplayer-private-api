@@ -156,6 +156,11 @@ function legacyDate(value: string, path: string): string {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+function legacyPaymentDate(value: string, path: string): string | null {
+  if (/^not\s+scheduled(?:\s*\*)?$/iu.test(value.trim())) return null;
+  return legacyDate(value, path);
+}
+
 function legacyMoney(value: string, path: string): number {
   let normalized = value.trim().replace(/[\u2212\u2013\u2014]/gu, "-");
   if (normalized === "-") return 0;
@@ -237,11 +242,14 @@ function legacyPaymentRows(html: string): readonly LegacySellerPayment[] {
       }
       const path = `response.rows[${String(rowIndex)}]`;
       payments.push({
-        estimatedArrivalDate: legacyDate(
+        estimatedArrivalDate: legacyPaymentDate(
           cells[0] ?? "",
           `${path}.estimatedArrivalDate`,
         ),
-        initiatedDate: legacyDate(cells[1] ?? "", `${path}.initiatedDate`),
+        initiatedDate: legacyPaymentDate(
+          cells[1] ?? "",
+          `${path}.initiatedDate`,
+        ),
         ordersCount: legacyOrders(cells[2] ?? "", `${path}.ordersCount`),
         totalSales: legacyMoney(cells[3] ?? "", `${path}.totalSales`),
         totalFees: legacyMoney(cells[4] ?? "", `${path}.totalFees`),

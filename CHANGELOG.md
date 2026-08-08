@@ -2,6 +2,10 @@
 
 All notable changes to this package will be documented here.
 
+## 0.8.2 - Unreleased
+
+- Preserve legacy upcoming-payment rows that TCGplayer labels `Not Scheduled` and represent their unavailable dates as `null`.
+
 ## 0.8.1 - Unreleased
 
 - Accept message conversations without linked order metadata and normalize their nullable order fields to empty strings.

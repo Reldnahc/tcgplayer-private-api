@@ -145,10 +145,10 @@ export interface ListLegacySellerPaymentsInput {
 }
 
 export interface LegacySellerPayment {
-  /** Calendar date in YYYY-MM-DD form. */
-  readonly estimatedArrivalDate: string;
-  /** Calendar date in YYYY-MM-DD form. */
-  readonly initiatedDate: string;
+  /** Calendar date in YYYY-MM-DD form, or null when TCGplayer displays Not Scheduled. */
+  readonly estimatedArrivalDate: string | null;
+  /** Calendar date in YYYY-MM-DD form, or null when TCGplayer displays Not Scheduled. */
+  readonly initiatedDate: string | null;
   readonly ordersCount: number;
   /** USD minor units (cents), preserving the displayed sign. */
   readonly totalSales: number;
