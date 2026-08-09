@@ -1233,6 +1233,42 @@ describe("TcgplayerSellerClient", () => {
     expect(requests[0]?.init?.body).toBeUndefined();
   });
 
+  it("omits empty provider color metadata", async () => {
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse({
+        errors: [],
+        results: [
+          {
+            totalResults: 1,
+            results: [
+              {
+                productId: 123,
+                productName: "Synthetic Card",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set",
+                rarityName: "Rare",
+                customAttributes: { color: [] },
+                marketPrice: 3.5,
+                lowestPrice: 3,
+                lowestPriceWithShipping: 4.49,
+                totalListings: 1,
+                listings: [],
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+
+    const result = await clientWith(
+      fetchImplementation,
+    ).searchMarketplaceProducts({
+      productIds: [123],
+    });
+
+    expect(result.products[0]).not.toHaveProperty("colors");
+  });
+
   it("submits a price-only update using the observed Seller Portal form contract", async () => {
     const { fetchImplementation, requests } = fetchQueue([
       new Response(null, { status: 204 }),

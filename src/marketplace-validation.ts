@@ -161,17 +161,21 @@ function parseProduct(value: unknown, path: string): MarketplaceProduct {
     source.customAttributes === undefined || source.customAttributes === null
       ? {}
       : record(source.customAttributes, `${path}.customAttributes`);
-  const colors = optionalStringArray(
+  const parsedColors = optionalStringArray(
     customAttributes.color,
     `${path}.customAttributes.color`,
   );
+  const colors =
+    parsedColors === undefined || parsedColors.length === 0
+      ? undefined
+      : [...new Set(parsedColors)];
   return {
     productId: integer(source.productId, `${path}.productId`),
     productName: text(source.productName, `${path}.productName`),
     productLineName: text(source.productLineName, `${path}.productLineName`),
     setName: text(source.setName, `${path}.setName`),
     rarityName: optionalText(source.rarityName, `${path}.rarityName`),
-    ...(colors === undefined ? {} : { colors: [...new Set(colors)] }),
+    ...(colors === undefined ? {} : { colors }),
     marketPrice: finite(source.marketPrice ?? 0, `${path}.marketPrice`),
     ...(lowestPrice === undefined ? {} : { lowestPrice }),
     ...(lowestPriceWithShipping === undefined

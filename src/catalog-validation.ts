@@ -66,9 +66,10 @@ function optionalStringArray(
   path: string,
 ): readonly string[] | undefined {
   if (value === undefined || value === null) return undefined;
-  if (!Array.isArray(value) || value.length === 0 || value.length > 16) {
-    return invalidResponse(`${path} must contain 1-16 strings.`);
+  if (!Array.isArray(value) || value.length > 16) {
+    return invalidResponse(`${path} must contain at most 16 strings.`);
   }
+  if (value.length === 0) return undefined;
   const values = value.map((item, index) =>
     text(item, `${path}[${String(index)}]`),
   );
