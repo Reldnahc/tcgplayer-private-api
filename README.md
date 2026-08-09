@@ -110,6 +110,9 @@ const packingSlip = await client.getPackingSlip({
 - `addOrderTracking(input, options?)`
 - `shipOrderWithoutTracking(input, options?)`
 - `markOrdersShipped(input, options?)`
+- `getOrderRefundOptions(options?)`
+- `refundOrderFull(input, options?)`
+- `refundOrderPartial(input, options?)`
 - `searchCatalogProducts(input, options?)`
 - `getCatalogProduct(input, options?)`
 - `searchMarketplaceProducts(input, options?)`
@@ -250,6 +253,36 @@ await client.markOrdersShipped({
 For an order intentionally shipped without tracking, use `shipOrderWithoutTracking`. Tracking submission and marking shipped are distinct operations, matching the Seller Portal workflow.
 
 Mutations are never automatically retried. A timeout, lost connection, server error, or invalid success response returns `AMBIGUOUS_RESULT`; re-read the affected order and reconcile tracking/status before choosing whether to retry. Do not treat this error as permission to immediately resubmit.
+
+## Order refunds
+
+Refunds are explicit, order-scoped financial mutations. The client exposes the
+provider's current origin and reason options, and order details expose
+`refundCapabilities.full` and `refundCapabilities.partial` derived only from
+the exact actions TCGplayer returned. Consumers must present their own review
+and confirmation interface; the package never chooses or schedules a refund.
+
+```ts
+const options = await client.getOrderRefundOptions();
+
+await client.refundOrderPartial({
+  sellerKey: "your-seller-key",
+  orderNumber: "your-order-number",
+  origin: options.origins[0].value,
+  reason: options.reasons[0].value,
+  reasonText: "The reason shown to the buyer and TCGplayer.",
+  shippingRefundAmount: 0,
+  products: [{ skuId: "the-order-line-sku", refundAmount: 2.5 }],
+});
+```
+
+Both refund methods perform a fresh seller-scoped order confirmation before
+submission. Partial amounts must use cents and cannot exceed the remaining
+confirmed product or shipping amounts after prior refunds. A successful result
+means the provider returned a definitive successful HTTP response; consumers
+should refresh the order to show its authoritative state. Refund submissions
+are never retried automatically. `AMBIGUOUS_RESULT` means the operator must
+reconcile the order in TCGplayer before considering any further refund.
 
 ## Price updates
 

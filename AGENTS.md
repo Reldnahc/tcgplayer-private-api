@@ -12,7 +12,7 @@ The primary consumer is:
 
 ## Current Phase
 
-The reusable seller client is authorized, including explicit tracking and shipment mutations, catalog/SKU discovery, price-only updates, positive live-inventory additions with an initial price, exact live-SKU inventory clearing, read-only payout history, payout-detail, and unpaid-balance retrieval, read-only seller feedback, seller message inbox, unread-count, and thread-detail retrieval, plus explicit thread mark-read and reply mutations. Keep work limited to those reviewed capabilities; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
+The reusable seller client is authorized, including explicit tracking and shipment mutations, explicit operator-confirmed full and partial order refunds, catalog/SKU discovery, price-only updates, positive live-inventory additions with an initial price, exact live-SKU inventory clearing, read-only payout history, payout-detail, and unpaid-balance retrieval, read-only seller feedback, seller message inbox, unread-count, and thread-detail retrieval, plus explicit thread mark-read and reply mutations. Keep work limited to those reviewed capabilities; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
 
 ## Scope
 
@@ -25,6 +25,8 @@ This repository owns:
 - Retrieval of packing-slip content and metadata.
 - Retrieval of pull-sheet exports and carrier detection.
 - Explicit, seller-scoped tracking and shipment-status mutations with reconciliation safeguards.
+- Explicit, seller-scoped full and partial order refunds with fresh capability
+  confirmation, amount bounds, and non-retryable ambiguous outcomes.
 - Catalog product search and exact condition/printing/language SKU discovery.
 - Explicit positive live-inventory additions that submit quantity and initial price together.
 - Explicit exact-SKU live-inventory removals that set an observed unreserved quantity to zero.
@@ -43,7 +45,7 @@ This repository does not own:
 - User-configurable rules or action dispatch.
 - Printer discovery, label rendering, or print-job submission.
 - Application UI, user accounts, application databases, or deployment stacks.
-- Payment setup, payment-instrument or bank-account retrieval, payout approval/rejection/retry, purchasing postage, refunds, cancellations, message deletion, mark-unread, resolution, escalation, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized. Thread mark-read and reply operations, price-only updates, positive inventory additions, and exact unreserved inventory removals are authorized when they follow their documented mutation-safety rules.
+- Payment setup, payment-instrument or bank-account retrieval, payout approval/rejection/retry, purchasing postage, cancellations, message deletion, mark-unread, resolution, escalation, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized. Full and partial order refunds, thread mark-read and reply operations, price-only updates, positive inventory additions, and exact unreserved inventory removals are authorized when they follow their documented mutation-safety rules.
 
 If a feature can be expressed without knowledge of TCGplayer's private transport, it probably belongs in the consuming application rather than here.
 

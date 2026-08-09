@@ -2,6 +2,16 @@
 
 All notable changes to this package will be documented here.
 
+## 0.12.0 - Unreleased
+
+- Add validated refund-option discovery and explicit full- and partial-order
+  refund methods.
+- Derive refund capabilities from TCGplayer's exact allowed actions, confirm
+  seller ownership immediately before submission, and bound partial refunds
+  against the confirmed order and its prior refunds.
+- Never retry refund mutations; report an uncertain remote result as
+  `AMBIGUOUS_RESULT` so consumers must reconcile before taking another action.
+
 ## 0.11.0 - Unreleased
 
 - Add explicit seller-message thread mark-read and reply methods.

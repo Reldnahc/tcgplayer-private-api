@@ -66,6 +66,8 @@ import type {
   OrderFulfillmentMutationResult,
   PackingSlipDocument,
   PullSheetDocument,
+  RefundOrderFullInput,
+  RefundOrderPartialInput,
   RequestOptions,
   ReplyToSellerMessageThreadInput,
   RemoveSellerInventoryInput,
@@ -87,6 +89,8 @@ import type {
   SellerPayoutStatus,
   SellerUnpaidBalance,
   SellerOrderDetail,
+  SellerOrderRefundOptions,
+  OrderRefundMutationResult,
   SellerOrderStatusFilter,
   ShipOrderWithoutTrackingInput,
   TcgplayerSellerClientOptions,
@@ -98,6 +102,7 @@ import {
   parseMarkOrdersShippedResponse,
   parseSearchSellerOrdersResult,
   parseSellerOrderDetail,
+  parseSellerOrderRefundOptions,
 } from "./validation.js";
 
 const SEARCH_PATH = "/orders/search?api-version=2.0";
@@ -105,6 +110,7 @@ const PACKING_SLIPS_PATH = "/orders/packing-slips/export?api-version=2.0";
 const PULL_SHEET_PATH = "/orders/pull-sheets/export?api-version=2.0";
 const DETECT_CARRIER_PATH = "/orders/detect-carrier?api-version=2.0";
 const STATUS_UPDATES_PATH = "/orders/status-updates?api-version=2.0";
+const REFUND_OPTIONS_PATH = "/orders/refunds/options?api-version=2.0";
 const UPDATE_INVENTORY_PATH = "/admin/pricing/updateinventory";
 const LEGACY_SELLER_PAYMENTS_PATH = "/admin/payment/sellerpayment";
 const LEGACY_UPCOMING_PAYMENTS_PATH = "/admin/payment/loadpendingpayments?r=0";
@@ -195,6 +201,48 @@ function sellerMessageBody(value: string): string {
     }
   }
   return normalized;
+}
+
+function refundReasonText(value: string): string {
+  if (typeof value !== "string") {
+    throw invalidArgument("reasonText must be a string.");
+  }
+  const normalized = value.replace(/\r\n?/gu, "\n").trim();
+  if (normalized.length < 1 || normalized.length > 500) {
+    throw invalidArgument("reasonText must contain 1-500 characters.");
+  }
+  for (const character of normalized) {
+    const code = character.charCodeAt(0);
+    if (
+      (code <= 0x1f && character !== "\n" && character !== "\t") ||
+      code === 0x7f
+    ) {
+      throw invalidArgument("reasonText contains an unsupported character.");
+    }
+  }
+  return normalized;
+}
+
+function currencyCents(name: string, value: number): number {
+  const normalized = finiteNumber(name, value, 0, 1_000_000);
+  const cents = Math.round(normalized * 100);
+  if (Math.abs(normalized * 100 - cents) > 1e-9) {
+    throw invalidArgument(`${name} must use no more than two decimal places.`);
+  }
+  return cents;
+}
+
+function refundBase(input: RefundOrderFullInput | RefundOrderPartialInput) {
+  if (typeof input !== "object" || input === null) {
+    throw invalidArgument("Refund input is required.");
+  }
+  return {
+    sellerKey: requiredText("sellerKey", input.sellerKey, 256),
+    orderNumber: requiredText("orderNumber", input.orderNumber, 128),
+    origin: requiredText("origin", input.origin, 256),
+    reason: requiredText("reason", input.reason, 256),
+    reasonText: refundReasonText(input.reasonText),
+  };
 }
 
 function sellerMessageThreadTarget(
@@ -1147,6 +1195,180 @@ export class TcgplayerSellerClient {
       updatedOrderNumbers,
       alreadyShippedOrderNumbers,
       errors: parsed.errors,
+    };
+  }
+
+  async getOrderRefundOptions(
+    options?: RequestOptions,
+  ): Promise<SellerOrderRefundOptions> {
+    const response = await this.transport.json(
+      "GET",
+      REFUND_OPTIONS_PATH,
+      undefined,
+      requestSignal(options),
+    );
+    return parseSellerOrderRefundOptions(response);
+  }
+
+  async refundOrderFull(
+    input: RefundOrderFullInput,
+    options?: RequestOptions,
+  ): Promise<OrderRefundMutationResult> {
+    const normalized = refundBase(input);
+    const confirmed = await this.confirmOrder(
+      {
+        sellerKey: normalized.sellerKey,
+        orderNumber: normalized.orderNumber,
+      },
+      options,
+    );
+    if (!confirmed.order.refundCapabilities.full) {
+      throw new TcgplayerApiError(
+        "FORBIDDEN",
+        "TCGplayer does not currently allow a full refund for this order.",
+      );
+    }
+    await this.transport.command(
+      `/orders/${encodeURIComponent(normalized.orderNumber)}/refund/full?api-version=2.0`,
+      {
+        origin: normalized.origin,
+        reason: normalized.reason,
+        reasonText: normalized.reasonText,
+      },
+      requestSignal(options),
+    );
+    return {
+      orderNumber: normalized.orderNumber,
+      refundType: "full",
+      outcome: "submitted",
+    };
+  }
+
+  async refundOrderPartial(
+    input: RefundOrderPartialInput,
+    options?: RequestOptions,
+  ): Promise<OrderRefundMutationResult> {
+    const normalized = refundBase(input);
+    if (!Array.isArray(input.products) || input.products.length > 500) {
+      throw invalidArgument("products must contain 0-500 refund lines.");
+    }
+    const shippingRefundCents = currencyCents(
+      "shippingRefundAmount",
+      input.shippingRefundAmount,
+    );
+    const seen = new Set<string>();
+    const requestedProducts = input.products.map((product, index) => {
+      if (typeof product !== "object" || product === null) {
+        throw invalidArgument(`products[${index}] must be an object.`);
+      }
+      const skuId = requiredText(
+        `products[${index}].skuId`,
+        product.skuId,
+        128,
+      );
+      if (seen.has(skuId)) {
+        throw invalidArgument("products must not contain duplicate SKU ids.");
+      }
+      seen.add(skuId);
+      return {
+        skuId,
+        refundCents: currencyCents(
+          `products[${index}].refundAmount`,
+          product.refundAmount,
+        ),
+      };
+    });
+    if (
+      shippingRefundCents === 0 &&
+      requestedProducts.every((product) => product.refundCents === 0)
+    ) {
+      throw invalidArgument("A partial refund must total at least $0.01.");
+    }
+
+    const confirmed = await this.confirmOrder(
+      {
+        sellerKey: normalized.sellerKey,
+        orderNumber: normalized.orderNumber,
+      },
+      options,
+    );
+    if (!confirmed.order.refundCapabilities.partial) {
+      throw new TcgplayerApiError(
+        "FORBIDDEN",
+        "TCGplayer does not currently allow a partial refund for this order.",
+      );
+    }
+
+    const previousShippingCents = confirmed.order.refunds.reduce(
+      (total, refund) => total + Math.round(refund.shippingAmount * 100),
+      0,
+    );
+    const remainingShippingCents =
+      Math.round(confirmed.order.transaction.shippingAmount * 100) -
+      previousShippingCents;
+    if (shippingRefundCents > remainingShippingCents) {
+      throw invalidArgument(
+        "shippingRefundAmount exceeds the confirmed refundable shipping amount.",
+      );
+    }
+
+    const products = requestedProducts
+      .filter((requested) => requested.refundCents > 0)
+      .map((requested) => {
+        const orderLines = confirmed.order.products.filter(
+          (product) => product.skuId === requested.skuId,
+        );
+        if (orderLines.length === 0) {
+          throw invalidArgument(
+            `SKU ${requested.skuId} is not present on the confirmed order.`,
+          );
+        }
+        const purchasedCents = orderLines.reduce(
+          (total, product) => total + Math.round(product.extendedPrice * 100),
+          0,
+        );
+        const previouslyRefundedCents = confirmed.order.refunds.reduce(
+          (total, refund) =>
+            total +
+            refund.products
+              .filter((product) => product.skuId === requested.skuId)
+              .reduce(
+                (subtotal, product) =>
+                  subtotal + Math.round(product.amount * 100),
+                0,
+              ),
+          0,
+        );
+        if (requested.refundCents > purchasedCents - previouslyRefundedCents) {
+          throw invalidArgument(
+            `Refund for SKU ${requested.skuId} exceeds its confirmed refundable amount.`,
+          );
+        }
+        const listoId = orderLines.find(
+          (product) => product.listoId !== undefined,
+        )?.listoId;
+        return {
+          skuId: requested.skuId,
+          refundAmount: requested.refundCents / 100,
+          ...(listoId === undefined ? {} : { listoId }),
+        };
+      });
+
+    await this.transport.command(
+      `/orders/${encodeURIComponent(normalized.orderNumber)}/refund/partial?api-version=2.0`,
+      {
+        origin: normalized.origin,
+        reason: normalized.reason,
+        reasonText: normalized.reasonText,
+        shippingRefundAmount: shippingRefundCents / 100,
+        products,
+      },
+      requestSignal(options),
+    );
+    return {
+      orderNumber: normalized.orderNumber,
+      refundType: "partial",
+      outcome: "submitted",
     };
   }
 

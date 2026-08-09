@@ -6,6 +6,8 @@ import type {
   SearchSellerOrdersResult,
   SellerOrderDetail,
   SellerOrderProduct,
+  SellerOrderRefund,
+  SellerOrderRefundOptions,
   SellerOrderSearchSummary,
   SellerOrderShippingAddress,
   SellerOrderTax,
@@ -72,6 +74,22 @@ function numberValue(source: UnknownRecord, key: string, path: string): number {
   const value = source[key];
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw invalidResponse(`Expected a finite number at ${path}.${key}.`);
+  }
+  return value;
+}
+
+function optionalIdentifierValue(
+  source: UnknownRecord,
+  key: string,
+  path: string,
+): string | number | undefined {
+  const value = source[key];
+  if (value === undefined || value === null) return undefined;
+  if (
+    (typeof value !== "string" && typeof value !== "number") ||
+    (typeof value === "number" && !Number.isFinite(value))
+  ) {
+    throw invalidResponse(`Expected a string or number at ${path}.${key}.`);
   }
   return value;
 }
@@ -190,6 +208,7 @@ function parseAddress(
 function parseProduct(value: unknown, path: string): SellerOrderProduct {
   const source = record(value, path);
   const quantity = integerValue(source, "quantity", path);
+  const listoId = optionalIdentifierValue(source, "listoId", path);
   if (quantity < 0) {
     throw invalidResponse(`Expected ${path}.quantity to be non-negative.`);
   }
@@ -201,7 +220,48 @@ function parseProduct(value: unknown, path: string): SellerOrderProduct {
     url: stringValue(source, "url", path),
     productId: stringValue(source, "productId", path),
     skuId: stringValue(source, "skuId", path),
+    ...(listoId === undefined ? {} : { listoId }),
   };
+}
+
+function parseRefund(value: unknown, path: string): SellerOrderRefund {
+  const source = record(value, path);
+  const shippingAmount = numberValue(source, "shippingAmount", path);
+  if (shippingAmount < 0) {
+    throw invalidResponse(
+      `Expected ${path}.shippingAmount to be non-negative.`,
+    );
+  }
+  return {
+    shippingAmount,
+    products: arrayValue(source, "products", path).map((product, index) => {
+      const productPath = `${path}.products[${index}]`;
+      const productSource = record(product, productPath);
+      const amount = numberValue(productSource, "amount", productPath);
+      if (amount < 0) {
+        throw invalidResponse(
+          `Expected ${productPath}.amount to be non-negative.`,
+        );
+      }
+      return {
+        skuId: stringValue(productSource, "skuId", productPath),
+        amount,
+      };
+    }),
+  };
+}
+
+function optionalArrayValue(
+  source: UnknownRecord,
+  key: string,
+  path: string,
+): unknown[] {
+  const value = source[key];
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw invalidResponse(`Expected an array at ${path}.${key}.`);
+  }
+  return value;
 }
 
 function parseTrackingNumber(
@@ -238,6 +298,7 @@ export function parseSellerOrderDetail(value: unknown): SellerOrderDetail {
   const path = "response";
   const source = record(value, path);
   const status = stringValue(source, "status", path);
+  const allowedActions = stringArrayValue(source, "allowedActions", path);
   return {
     createdAt: stringValue(source, "createdAt", path),
     status,
@@ -262,7 +323,14 @@ export function parseSellerOrderDetail(value: unknown): SellerOrderDetail {
     products: arrayValue(source, "products", path).map((product, index) =>
       parseProduct(product, `response.products[${index}]`),
     ),
+    refunds: optionalArrayValue(source, "refunds", path).map((refund, index) =>
+      parseRefund(refund, `response.refunds[${index}]`),
+    ),
     refundStatus: stringValue(source, "refundStatus", path),
+    refundCapabilities: {
+      full: allowedActions.includes("FullRefund"),
+      partial: allowedActions.includes("PartialRefund"),
+    },
     trackingNumbers: arrayValue(source, "trackingNumbers", path).map(
       (trackingNumber, index) =>
         parseTrackingNumber(
@@ -270,8 +338,37 @@ export function parseSellerOrderDetail(value: unknown): SellerOrderDetail {
           `response.trackingNumbers[${index}]`,
         ),
     ),
-    allowedActions: stringArrayValue(source, "allowedActions", path),
+    allowedActions,
   };
+}
+
+export function parseSellerOrderRefundOptions(
+  value: unknown,
+): SellerOrderRefundOptions {
+  const source = record(value, "response");
+  const parseOptions = (
+    key: "origins" | "reasons",
+  ): SellerOrderRefundOptions[typeof key] => {
+    const seen = new Set<string>();
+    const options = arrayValue(source, key, "response").map((option, index) => {
+      const path = `response.${key}[${index}]`;
+      const optionSource = record(option, path);
+      const name = stringValue(optionSource, "name", path).trim();
+      const optionValue = stringValue(optionSource, "value", path).trim();
+      if (!name || !optionValue || seen.has(optionValue)) {
+        throw invalidResponse(
+          `Expected response.${key} to contain unique non-empty options.`,
+        );
+      }
+      seen.add(optionValue);
+      return { name, value: optionValue };
+    });
+    if (options.length === 0) {
+      throw invalidResponse(`Expected response.${key} to be non-empty.`);
+    }
+    return options;
+  };
+  return { origins: parseOptions("origins"), reasons: parseOptions("reasons") };
 }
 
 export function parseDetectCarrierResult(value: unknown): DetectCarrierResult {

@@ -15,7 +15,9 @@ Fulfillment automation needs to add tracking and mark seller orders shipped. The
 - Never automatically retry a mutation, even when read-only retry settings are enabled.
 - Return `AMBIGUOUS_RESULT` for timeouts, connection loss, server errors, or unsupported success responses after a mutation may have been accepted. Consumers must reconcile current order state before manually retrying.
 - Keep live compatibility checks read-only by default. A real mutation requires a separately chosen order and deliberate operator action outside automated CI.
-- Keep postage purchasing, refunds, cancellations, inventory, pricing, and messaging outside the authorized package surface.
+- Keep postage purchasing and cancellations outside the authorized package
+  surface. Refunds follow the separately reviewed financial safeguards in ADR
+  0006; inventory, pricing, and messaging follow their own later decisions.
 
 ## Consequences
 

@@ -2256,4 +2256,176 @@ describe("TcgplayerSellerClient", () => {
       }),
     ).rejects.toMatchObject({ code: "AMBIGUOUS_RESULT" });
   });
+
+  it("reads and validates the provider refund options", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({
+        origins: [{ name: "Seller initiated", value: "SellerInitiated" }],
+        reasons: [
+          { name: "Inventory issue", value: "Product - Inventory Issue" },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(client.getOrderRefundOptions()).resolves.toEqual({
+      origins: [{ name: "Seller initiated", value: "SellerInitiated" }],
+      reasons: [
+        { name: "Inventory issue", value: "Product - Inventory Issue" },
+      ],
+    });
+    expect(requests[0]?.url).toBe(
+      "https://order-management-api.tcgplayer.com/orders/refunds/options?api-version=2.0",
+    );
+  });
+
+  it("derives exact refund capabilities and validates refund history", async () => {
+    const order = {
+      ...syntheticOrder,
+      refunds: [
+        {
+          shippingAmount: 0.25,
+          products: [{ skuId: "200000", amount: 2.5 }],
+        },
+      ],
+      allowedActions: ["FullRefund"],
+    };
+    const { fetchImplementation } = fetchQueue([jsonResponse(order)]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(client.getOrder(syntheticOrderNumber)).resolves.toMatchObject({
+      refunds: order.refunds,
+      refundCapabilities: { full: true, partial: false },
+    });
+  });
+
+  it("submits a full refund only after seller-scoped confirmation", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse(syntheticOrder),
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.refundOrderFull({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+        origin: "SellerInitiated",
+        reason: "Product - Inventory Issue",
+        reasonText: "Synthetic refund explanation",
+      }),
+    ).resolves.toEqual({
+      orderNumber: syntheticOrderNumber,
+      refundType: "full",
+      outcome: "submitted",
+    });
+    expect(requests).toHaveLength(3);
+    expect(requests[2]?.url).toBe(
+      `https://order-management-api.tcgplayer.com/orders/${syntheticOrderNumber}/refund/full?api-version=2.0`,
+    );
+    expect(JSON.parse(String(requests[2]?.init?.body))).toEqual({
+      origin: "SellerInitiated",
+      reason: "Product - Inventory Issue",
+      reasonText: "Synthetic refund explanation",
+    });
+  });
+
+  it("submits bounded partial product and shipping refunds", async () => {
+    const refundableOrder = {
+      ...syntheticOrder,
+      refunds: [
+        {
+          shippingAmount: 0.25,
+          products: [{ skuId: "200000", amount: 2.5 }],
+        },
+      ],
+    };
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse(refundableOrder),
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.refundOrderPartial({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+        origin: "SellerInitiated",
+        reason: "Product - Condition Issue",
+        reasonText: "Synthetic partial refund",
+        shippingRefundAmount: 1,
+        products: [{ skuId: "200000", refundAmount: 10 }],
+      }),
+    ).resolves.toMatchObject({ refundType: "partial", outcome: "submitted" });
+    expect(JSON.parse(String(requests[2]?.init?.body))).toEqual({
+      origin: "SellerInitiated",
+      reason: "Product - Condition Issue",
+      reasonText: "Synthetic partial refund",
+      shippingRefundAmount: 1,
+      products: [
+        {
+          skuId: "200000",
+          listoId: 300000,
+          refundAmount: 10,
+        },
+      ],
+    });
+  });
+
+  it("rejects a partial refund above the confirmed remaining amount", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse({ totalOrders: 1, orders: [syntheticSummary] }),
+      jsonResponse({
+        ...syntheticOrder,
+        refunds: [
+          {
+            shippingAmount: 0,
+            products: [{ skuId: "200000", amount: 12 }],
+          },
+        ],
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.refundOrderPartial({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+        origin: "SellerInitiated",
+        reason: "Product - Condition Issue",
+        reasonText: "Synthetic partial refund",
+        shippingRefundAmount: 0,
+        products: [{ skuId: "200000", refundAmount: 1 }],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    expect(requests).toHaveLength(2);
+  });
+
+  it("never automatically retries an ambiguous refund", async () => {
+    let requests = 0;
+    const fetchImplementation: typeof globalThis.fetch = async () => {
+      requests += 1;
+      if (requests === 1) {
+        return jsonResponse({ totalOrders: 1, orders: [syntheticSummary] });
+      }
+      if (requests === 2) return jsonResponse(syntheticOrder);
+      throw new Error("synthetic response lost after refund submission");
+    };
+    const client = clientWith(fetchImplementation, {
+      retry: { maxRetries: 3, baseDelayMs: 0, maxDelayMs: 0 },
+    });
+
+    await expect(
+      client.refundOrderFull({
+        sellerKey: syntheticSellerKey,
+        orderNumber: syntheticOrderNumber,
+        origin: "SellerInitiated",
+        reason: "General - Cancellation",
+        reasonText: "Synthetic ambiguous refund",
+      }),
+    ).rejects.toMatchObject({ code: "AMBIGUOUS_RESULT", retryable: false });
+    expect(requests).toBe(3);
+  });
 });

@@ -85,6 +85,23 @@ printed or retained.
 
 The behavioral reference repository was rechecked at commit `79b8795dadde14dc7a3b60d6f5a9fabe902ee151`. Its `app/core/clients/messagesApi.client.server.ts` and `app/integrations/tcgplayer/client/create-seller-order-message-thread.server.ts` confirmed the dedicated Messages API origin but implemented only a thread-creation mutation, not inbox reads. No reference source was copied; the package implementation was independently written from the public Seller Portal behavior above.
 
+The public Seller Portal orders bundle at
+`https://sellerportal-orders-app.tcgplayer.com/orders.js` was inspected on
+2026-08-09 after explicit authorization to add order refunds. It showed the
+read-only option request at `GET /orders/refunds/options?api-version=2.0`, and
+separate full and partial submissions at
+`POST /orders/{orderNumber}/refund/full?api-version=2.0` and
+`POST /orders/{orderNumber}/refund/partial?api-version=2.0`. Full submissions
+contain the selected origin, reason, and buyer-visible reason text. Partial
+submissions additionally contain shipping and per-SKU refund amounts, plus the
+provider line identifier when present. The same bundle enables these actions
+only for the exact `FullRefund` and `PartialRefund` order actions and subtracts
+prior product and shipping refunds from the available amounts. No refund was
+sent during inspection, and no seller credential, order identifier, customer
+data, price, or refund value was printed or retained. No TCGplayer source code
+was copied; the typed client was independently implemented from the observed
+request and response contract.
+
 A read-only marketplace compatibility observation on 2026-08-03 confirmed seller-key inventory filtering and product searches filtered by condition. Only schema and aggregate counts were inspected; listing identifiers, names, prices, and credentials were not retained.
 
 The public Seller Portal pricing bundle (`/admin/scripts/pricing/main-built.31397.js`) was inspected on 2026-08-03 and rechecked on 2026-08-04 after definite request rejections exposed a route mismatch. The bulk Pricing page saves through `POST https://store.tcgplayer.com/admin/pricing/updateinventory`, with `type=Pricing` and `isStaged=false` for live inventory. Its submitted model includes product, condition, channel, relative add-to-quantity, absolute post-add quantity, price, custom-price identifier, and reserve quantity fields. The bundle computes `newQty` as current quantity plus add quantity and submits `newQty` as the condition-level `Quantity`. A separate product-detail screen uses `/admin/product/updateinventory`; it is not the contract implemented by this package. The package independently implements a price-only variant with `AddToQuantity` fixed at zero, a positive-addition variant that requires a fresh current quantity and an initial price, and an exact-removal variant that requires a fresh positive unreserved quantity and submits zero as the absolute quantity. `ExistingQuantity` remains fixed at the observed value of zero in all methods.

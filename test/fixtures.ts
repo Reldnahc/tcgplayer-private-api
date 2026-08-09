@@ -61,8 +61,10 @@ export const syntheticOrder: SellerOrderDetail = {
       url: "https://example.invalid/products/example-card",
       productId: "100000",
       skuId: "200000",
+      listoId: 300000,
     },
   ],
+  refunds: [],
   refundStatus: "None",
   trackingNumbers: [
     {
@@ -72,7 +74,8 @@ export const syntheticOrder: SellerOrderDetail = {
       status: "InTransit",
     },
   ],
-  allowedActions: ["View"],
+  refundCapabilities: { full: true, partial: true },
+  allowedActions: ["View", "FullRefund", "PartialRefund"],
 };
 
 export const syntheticPdf = new TextEncoder().encode(

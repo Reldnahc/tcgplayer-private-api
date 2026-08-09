@@ -413,6 +413,23 @@ export interface SellerOrderProduct {
   readonly url: string;
   readonly productId: string;
   readonly skuId: string;
+  /** Present for order lines whose refund contract requires TCGplayer's line id. */
+  readonly listoId?: string | number;
+}
+
+export interface SellerOrderRefundProduct {
+  readonly skuId: string;
+  readonly amount: number;
+}
+
+export interface SellerOrderRefund {
+  readonly shippingAmount: number;
+  readonly products: readonly SellerOrderRefundProduct[];
+}
+
+export interface SellerOrderRefundCapabilities {
+  readonly full: boolean;
+  readonly partial: boolean;
 }
 
 export interface SellerOrderTrackingNumber {
@@ -440,7 +457,10 @@ export interface SellerOrderDetail {
   readonly transaction: SellerOrderTransaction;
   readonly shippingAddress: SellerOrderShippingAddress;
   readonly products: readonly SellerOrderProduct[];
+  readonly refunds: readonly SellerOrderRefund[];
   readonly refundStatus: string;
+  /** Derived only from the provider's exact FullRefund/PartialRefund actions. */
+  readonly refundCapabilities: SellerOrderRefundCapabilities;
   readonly trackingNumbers: readonly SellerOrderTrackingNumber[];
   readonly allowedActions: readonly string[];
 }
@@ -523,6 +543,44 @@ export interface MarkOrdersShippedResult {
   readonly updatedOrderNumbers: readonly string[];
   readonly alreadyShippedOrderNumbers: readonly string[];
   readonly errors: readonly MarkOrdersShippedError[];
+}
+
+export interface SellerOrderRefundOption {
+  readonly name: string;
+  readonly value: string;
+}
+
+export interface SellerOrderRefundOptions {
+  readonly origins: readonly SellerOrderRefundOption[];
+  readonly reasons: readonly SellerOrderRefundOption[];
+}
+
+interface RefundOrderInput {
+  readonly sellerKey: string;
+  readonly orderNumber: string;
+  readonly origin: string;
+  readonly reason: string;
+  /** Sent to the buyer, seller, and TCGplayer by the provider. */
+  readonly reasonText: string;
+}
+
+export type RefundOrderFullInput = RefundOrderInput;
+
+export interface RefundOrderProductInput {
+  readonly skuId: string;
+  readonly refundAmount: number;
+}
+
+export interface RefundOrderPartialInput extends RefundOrderInput {
+  readonly shippingRefundAmount: number;
+  readonly products: readonly RefundOrderProductInput[];
+}
+
+export interface OrderRefundMutationResult {
+  readonly orderNumber: string;
+  readonly refundType: "full" | "partial";
+  /** The provider returned a definitive successful HTTP response. */
+  readonly outcome: "submitted";
 }
 
 /**
