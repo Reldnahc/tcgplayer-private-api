@@ -29,6 +29,7 @@ import {
   parseSellerPayouts,
   parseSellerUnpaidBalance,
 } from "./payments-validation.js";
+import { parsePullSheetRows } from "./pull-sheet-validation.js";
 import { SellerApiTransport } from "./transport.js";
 import type {
   AddSellerInventoryInput,
@@ -145,20 +146,6 @@ const SELLER_ORDER_STATUSES: ReadonlySet<SellerOrderStatusFilter> = new Set([
   "Shipped",
   "ShippedOrderCanceled",
 ]);
-const PULL_SHEET_COLUMNS = [
-  "Product Line",
-  "Product Name",
-  "Condition",
-  "Number",
-  "Set",
-  "Rarity",
-  "Quantity",
-  "Main Photo URL",
-  "Set Release Date",
-  "SkuId",
-  "Order Quantity",
-] as const;
-
 function containsControlCharacter(value: string): boolean {
   for (const character of value) {
     const code = character.charCodeAt(0);
@@ -364,16 +351,6 @@ function uniqueProductIds(
 function isShippedStatus(status: string): boolean {
   const normalized = status.trim().toLowerCase();
   return normalized.startsWith("shipped") || normalized === "delivered";
-}
-
-function validatePullSheet(text: string): void {
-  const firstLine = text.replace(/^\uFEFF/u, "").split(/\r?\n/u, 1)[0] ?? "";
-  if (firstLine !== PULL_SHEET_COLUMNS.join(",")) {
-    throw new TcgplayerApiError(
-      "INVALID_RESPONSE",
-      "TCGplayer returned a pull sheet with an unsupported column schema.",
-    );
-  }
 }
 
 interface InventoryFormUpdate {
@@ -1052,12 +1029,13 @@ export class TcgplayerSellerClient {
       { orderNumbers, timezoneOffset: timezoneOffsetMinutes },
       requestSignal(options),
     );
-    validatePullSheet(text);
+    const rows = parsePullSheetRows(text);
     return {
       text,
       contentType: "text/csv",
       fileName: "pull-sheet.csv",
       orderNumbers,
+      rows,
     };
   }
 

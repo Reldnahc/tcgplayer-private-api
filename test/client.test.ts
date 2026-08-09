@@ -2019,6 +2019,21 @@ describe("TcgplayerSellerClient", () => {
       contentType: "text/csv",
       fileName: "pull-sheet.csv",
       orderNumbers: [syntheticOrderNumber],
+      rows: [
+        {
+          productLine: "Example Game",
+          productName: "Example, Card",
+          condition: "Near Mint",
+          number: "1",
+          setName: "Example Set",
+          rarity: "Rare",
+          quantity: 1,
+          mainPhotoUrl: "https://example.invalid/card",
+          setReleaseDate: "2026-01-01",
+          skuId: "200000",
+          orderQuantity: 1,
+        },
+      ],
     });
     expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
       orderNumbers: [syntheticOrderNumber],
@@ -2040,6 +2055,29 @@ describe("TcgplayerSellerClient", () => {
         timezoneOffsetMinutes: 0,
       }),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("rejects malformed pull-sheet rows", async () => {
+    const malformed = syntheticPullSheet.replace(
+      ",200000,1\r\n",
+      ',200000,"not a quantity"\r\n',
+    );
+    const { fetchImplementation } = fetchQueue([
+      new Response(malformed, {
+        headers: { "content-type": "text/csv" },
+      }),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.exportPullSheet({
+        orderNumbers: [syntheticOrderNumber],
+        timezoneOffsetMinutes: 0,
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_RESPONSE",
+      message: expect.stringContaining("Order Quantity"),
+    });
   });
 
   it("adds tracking only after seller-scoped preflight confirmation", async () => {

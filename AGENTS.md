@@ -23,7 +23,7 @@ This repository owns:
 - Runtime validation and normalization of private API requests and responses.
 - Retrieval of authorized seller orders needed to confirm a sale notification.
 - Retrieval of packing-slip content and metadata.
-- Retrieval of pull-sheet exports and carrier detection.
+- Retrieval of pull-sheet exports, including validated typed display rows, and carrier detection.
 - Explicit, seller-scoped tracking and shipment-status mutations with reconciliation safeguards.
 - Explicit, seller-scoped full and partial order refunds with fresh capability
   confirmation, amount bounds, and non-retryable ambiguous outcomes.

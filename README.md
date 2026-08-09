@@ -433,6 +433,10 @@ Live checks are excluded from ordinary tests and CI. The provided compatibility 
 TCGPLAYER_AUTH_COOKIE=... TCGPLAYER_SELLER_KEY=... npm run compatibility:check
 ```
 
+`exportPullSheet` preserves the validated CSV as `text` and also returns typed
+`rows` for consumers that need to display or render a pull list without parsing
+TCGplayer's document format themselves.
+
 To check an exact order, add `TCGPLAYER_ORDER_NUMBER`. To retrieve and validate its packing slip or pull sheet in memory, explicitly set `TCGPLAYER_CHECK_PACKING_SLIP=1` or `TCGPLAYER_CHECK_PULL_SHEET=1`. The script never writes order data or documents to disk.
 
 Tracking, shipment, price-update, and inventory-add methods are covered with synthetic contract tests. Exercise mutations against a real account only with a deliberately selected order or listing and operator supervision.

@@ -2,6 +2,13 @@
 
 All notable changes to this package will be documented here.
 
+## 0.13.0 - Unreleased
+
+- Parse validated pull-sheet CSV into typed product rows while preserving the
+  original in-memory document text for existing consumers.
+- Reject malformed quoting, unexpected columns, invalid quantities, oversized
+  rows, and unsafe field content before returning pull-sheet data.
+
 ## 0.12.0 - Unreleased
 
 - Add validated refund-option discovery and explicit full- and partial-order

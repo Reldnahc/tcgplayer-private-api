@@ -508,6 +508,21 @@ export interface PullSheetDocument {
   readonly contentType: "text/csv";
   readonly fileName: "pull-sheet.csv";
   readonly orderNumbers: readonly string[];
+  readonly rows: readonly PullSheetRow[];
+}
+
+export interface PullSheetRow {
+  readonly productLine: string;
+  readonly productName: string;
+  readonly condition: string;
+  readonly number: string;
+  readonly setName: string;
+  readonly rarity: string;
+  readonly quantity: number;
+  readonly mainPhotoUrl: string;
+  readonly setReleaseDate: string;
+  readonly skuId: string;
+  readonly orderQuantity: number;
 }
 
 export interface AddOrderTrackingInput {
