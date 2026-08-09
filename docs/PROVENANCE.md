@@ -122,6 +122,11 @@ A controlled live compatibility check on 2026-08-04 resubmitted one eligible lis
 
 ## Live compatibility observation
 
+A read-only public marketplace observation on 2026-08-09 confirmed that an
+exact `productId` term batch returns product `customAttributes.color` arrays
+without requiring one product-detail request per card. The package exposes only
+validated color strings and omits the optional field when the source has none.
+
 An opt-in, read-only compatibility check against an authorized seller account on 2026-08-03 confirmed order search, exact-order confirmation, order-detail retrieval, packing-slip export, and pull-sheet export. No response bodies, credentials, order values, customer data, tracking values, or document bytes were retained.
 
 The schema-only observations needed for compatibility were:

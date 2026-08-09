@@ -689,6 +689,8 @@ export interface CatalogProductSummary {
   readonly setName: string;
   readonly rarityName: string;
   readonly cardNumber: string;
+  /** Provider-supplied card colors when the product line defines them. */
+  readonly colors?: readonly string[];
   /** English Near Mint Foil market price when explicitly requested and available. */
   readonly foilMarketPrice?: number;
   readonly marketPrice: number;
@@ -787,6 +789,8 @@ export interface MarketplaceProduct {
   readonly productLineName: string;
   readonly setName: string;
   readonly rarityName: string;
+  /** Provider-supplied card colors when the product line defines them. */
+  readonly colors?: readonly string[];
   readonly marketPrice: number;
   readonly lowestPrice?: number;
   readonly lowestPriceWithShipping?: number;

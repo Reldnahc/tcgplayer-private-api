@@ -27,7 +27,8 @@ This repository owns:
 - Explicit, seller-scoped tracking and shipment-status mutations with reconciliation safeguards.
 - Explicit, seller-scoped full and partial order refunds with fresh capability
   confirmation, amount bounds, and non-retryable ambiguous outcomes.
-- Catalog product search and exact condition/printing/language SKU discovery.
+- Catalog product search, optional provider-supplied color metadata, and exact
+  condition/printing/language SKU discovery.
 - Explicit positive live-inventory additions that submit quantity and initial price together.
 - Explicit exact-SKU live-inventory removals that set an observed unreserved quantity to zero.
 - Read-only seller payment history and upcoming-payment retrieval through the account-selected legacy Seller Portal or Money Movement experience, including Money Movement payout details and unpaid balances.

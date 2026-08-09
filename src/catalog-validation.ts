@@ -61,6 +61,20 @@ function optionalText(value: unknown, path: string): string {
   return value === undefined || value === null ? "" : text(value, path, true);
 }
 
+function optionalStringArray(
+  value: unknown,
+  path: string,
+): readonly string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.length === 0 || value.length > 16) {
+    return invalidResponse(`${path} must contain 1-16 strings.`);
+  }
+  const values = value.map((item, index) =>
+    text(item, `${path}[${String(index)}]`),
+  );
+  return [...new Set(values)];
+}
+
 function summary(value: unknown, path: string): CatalogProductSummary {
   const source = record(value, path);
   const productId = integer(source.productId, `${path}.productId`);
@@ -68,6 +82,10 @@ function summary(value: unknown, path: string): CatalogProductSummary {
     source.customAttributes === undefined || source.customAttributes === null
       ? {}
       : record(source.customAttributes, `${path}.customAttributes`);
+  const colors = optionalStringArray(
+    attributes.color,
+    `${path}.customAttributes.color`,
+  );
   if (typeof source.sellerListable !== "boolean") {
     return invalidResponse(`${path}.sellerListable must be a boolean.`);
   }
@@ -82,6 +100,7 @@ function summary(value: unknown, path: string): CatalogProductSummary {
       attributes.number,
       `${path}.customAttributes.number`,
     ),
+    ...(colors === undefined ? {} : { colors }),
     marketPrice: finite(source.marketPrice ?? 0, `${path}.marketPrice`),
     sellerListable: source.sellerListable,
   };

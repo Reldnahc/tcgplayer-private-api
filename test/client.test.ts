@@ -620,6 +620,7 @@ describe("TcgplayerSellerClient", () => {
       productLineName: "Synthetic Game",
       setName: "Synthetic Set",
       rarityName: null,
+      customAttributes: { color: ["Blue"] },
       marketPrice: 3.5,
       lowestPrice: 3.25,
       lowestPriceWithShipping: 4.24,
@@ -664,6 +665,7 @@ describe("TcgplayerSellerClient", () => {
       productId: 123,
       productName: "Synthetic Card",
       rarityName: "",
+      colors: ["Blue"],
       listings: [
         {
           productConditionId: 456,
@@ -1194,7 +1196,7 @@ describe("TcgplayerSellerClient", () => {
         productLineName: "Synthetic Game",
         setName: "Synthetic Set",
         rarityName: null,
-        customAttributes: { number: "42" },
+        customAttributes: { number: "42", color: ["Blue", "Red"] },
         marketPrice: 3.5,
         sellerListable: true,
         skus: [
@@ -1223,6 +1225,7 @@ describe("TcgplayerSellerClient", () => {
     expect(result.imageUrl).toBe(
       "https://product-images.tcgplayer.com/fit-in/200x279/123.jpg",
     );
+    expect(result.colors).toEqual(["Blue", "Red"]);
     expect(requests[0]?.url).toBe(
       "https://mp-search-api.tcgplayer.com/v2/product/123/details",
     );

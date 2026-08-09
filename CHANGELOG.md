@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.14.0 - Unreleased
+
+- Preserve validated, provider-supplied card colors on catalog summaries,
+  product details, and marketplace-product batches when a product line exposes
+  them; omit the optional field when no color metadata exists.
+
 ## 0.13.0 - Unreleased
 
 - Parse validated pull-sheet CSV into typed product rows while preserving the
