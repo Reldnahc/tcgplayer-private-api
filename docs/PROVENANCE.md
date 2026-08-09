@@ -71,7 +71,17 @@ The public Seller Portal import map, Messages bundle at `https://sellerportal-me
 - `GET https://store.tcgplayer.com/admin/sp-msg-api/{sellerKey}/threads/{threadId}?messagesPage={page}&messagesPageSize={pageSize}` for thread content.
 - `GET https://messages-api.tcgplayer.com/messages/unread-count` for the authenticated account's navigation badge.
 
-The Messages bundle performs separate POST requests for replies, read-state changes, deletion, resolution, and escalation; none are implemented. In particular, fetching thread detail and marking it read are distinct requests, so the package's GET does not intentionally change unread state. Schema-only authenticated compatibility observations confirmed the list, count, and detail field names, types, and pagination counts. Conversations without a linked seller order may return null or omit order type, number, and status; the package normalizes those fields to empty strings. No message body, sender or receiver identity, thread or message identifier, order identifier, seller key, or credential was printed or retained.
+The Messages bundle performs separate POST requests for replies, read-state changes, deletion, resolution, and escalation; none were implemented in the original 0.8.0 read-only contract. In particular, fetching thread detail and marking it read are distinct requests, so the package's GET does not intentionally change unread state. Schema-only authenticated compatibility observations confirmed the list, count, and detail field names, types, and pagination counts. Conversations without a linked seller order may return null or omit order type, number, and status; the package normalizes those fields to empty strings. No message body, sender or receiver identity, thread or message identifier, order identifier, seller key, or credential was printed or retained.
+
+The public Messages bundle was re-inspected on 2026-08-09 after explicit
+authorization to add narrow message mutations. It showed `POST
+/admin/sp-msg-api/{sellerKey}/threads/{threadId}/mark-as-read` with no request
+body and `POST /admin/sp-msg-api/{sellerKey}/threads/{threadId}/reply` with
+`{ replyMessageDto: { Body } }`. The package implements only these two
+operations. It does not implement mark-unread, per-message read state,
+deletion, resolution, or escalation. No mutation was sent during inspection,
+and no real message content, thread identifier, seller key, or credential was
+printed or retained.
 
 The behavioral reference repository was rechecked at commit `79b8795dadde14dc7a3b60d6f5a9fabe902ee151`. Its `app/core/clients/messagesApi.client.server.ts` and `app/integrations/tcgplayer/client/create-seller-order-message-thread.server.ts` confirmed the dedicated Messages API origin but implemented only a thread-creation mutation, not inbox reads. No reference source was copied; the package implementation was independently written from the public Seller Portal behavior above.
 

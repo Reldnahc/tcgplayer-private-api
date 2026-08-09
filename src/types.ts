@@ -63,6 +63,17 @@ export interface GetSellerMessageThreadInput {
   readonly pageSize?: number;
 }
 
+export interface MarkSellerMessageThreadReadInput {
+  readonly sellerKey: string;
+  readonly threadId: number;
+}
+
+export interface ReplyToSellerMessageThreadInput {
+  readonly sellerKey: string;
+  readonly threadId: number;
+  readonly body: string;
+}
+
 export interface SellerMessageThreadSummary {
   readonly threadId: number;
   readonly unreadMessageCount: number;

@@ -12,7 +12,7 @@ The primary consumer is:
 
 ## Current Phase
 
-The reusable seller client is authorized, including explicit tracking and shipment mutations, catalog/SKU discovery, price-only updates, positive live-inventory additions with an initial price, exact live-SKU inventory clearing, read-only payout history, payout-detail, and unpaid-balance retrieval, read-only seller feedback, and read-only seller message inbox, unread-count, and thread-detail retrieval. Keep work limited to those reviewed capabilities; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
+The reusable seller client is authorized, including explicit tracking and shipment mutations, catalog/SKU discovery, price-only updates, positive live-inventory additions with an initial price, exact live-SKU inventory clearing, read-only payout history, payout-detail, and unpaid-balance retrieval, read-only seller feedback, seller message inbox, unread-count, and thread-detail retrieval, plus explicit thread mark-read and reply mutations. Keep work limited to those reviewed capabilities; verify reuse rights, document observed contracts, and preserve the independent npm package boundary.
 
 ## Scope
 
@@ -30,7 +30,7 @@ This repository owns:
 - Explicit exact-SKU live-inventory removals that set an observed unreserved quantity to zero.
 - Read-only seller payment history and upcoming-payment retrieval through the account-selected legacy Seller Portal or Money Movement experience, including Money Movement payout details and unpaid balances.
 - Read-only seller feedback pages and aggregate rating summaries from TCGplayer's current storefront service.
-- Read-only seller message inbox pages, unread counts, and thread details without changing message state.
+- Seller message inbox pages, unread counts, and thread details, plus explicit thread mark-read and reply operations.
 - Typed errors, retry hints, compatibility detection, and sanitized contract fixtures.
 - A stable, documented client contract that applications can version and consume.
 - npm packaging, compiled runtime output, type declarations, and release compatibility.
@@ -43,7 +43,7 @@ This repository does not own:
 - User-configurable rules or action dispatch.
 - Printer discovery, label rendering, or print-job submission.
 - Application UI, user accounts, application databases, or deployment stacks.
-- Payment setup, payment-instrument or bank-account retrieval, payout approval/rejection/retry, purchasing postage, refunds, cancellations, message replies, message-state changes, message deletion, escalation, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized. Price-only updates, positive inventory additions, and exact unreserved inventory removals are authorized when they preserve other inventory state and follow the mutation-safety rules below.
+- Payment setup, payment-instrument or bank-account retrieval, payout approval/rejection/retry, purchasing postage, refunds, cancellations, message deletion, mark-unread, resolution, escalation, and other Seller Portal mutations unless separately requested, reviewed, and explicitly authorized. Thread mark-read and reply operations, price-only updates, positive inventory additions, and exact unreserved inventory removals are authorized when they follow their documented mutation-safety rules.
 
 If a feature can be expressed without knowledge of TCGplayer's private transport, it probably belongs in the consuming application rather than here.
 

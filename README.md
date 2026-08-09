@@ -130,6 +130,8 @@ const packingSlip = await client.getPackingSlip({
 - `listSellerMessageThreads(input, options?)`
 - `getSellerMessageThread(input, options?)`
 - `getSellerUnreadMessageCount(options?)`
+- `markSellerMessageThreadRead(input, options?)`
+- `replyToSellerMessageThread(input, options?)`
 
 Every method accepts an optional `AbortSignal`. JSON, PDF, and CSV responses are size-limited and validated before they are returned. Read-only requests use bounded retries for rate limits and selected transient failures.
 
@@ -138,7 +140,7 @@ Order responses preserve TCGplayer's validated display label in `orderStatus`
 the normalized `orderStatusCode` or `statusCode` enum instead. Unrecognized
 provider labels map to `SellerOrderStatus.Unknown`; they are never guessed.
 
-## Read-only seller messages
+## Seller messages
 
 Message reads use the authenticated seller's current Seller Portal session. Inbox and thread pages are seller-scoped and paginated; the separate unread-count method is scoped by the authenticated session.
 
@@ -155,9 +157,26 @@ const thread = await client.getSellerMessageThread({
   sellerKey: "your-seller-key",
   threadId: inbox.threads[0].threadId,
 });
+
+await client.markSellerMessageThreadRead({
+  sellerKey: "your-seller-key",
+  threadId: thread.threadId,
+});
+
+await client.replyToSellerMessageThread({
+  sellerKey: "your-seller-key",
+  threadId: thread.threadId,
+  body: "Thanks for your message. Your order is on the way.",
+});
 ```
 
-These methods only issue GET requests. Retrieving thread detail does not call TCGplayer's separate mark-as-read action. Replies, read-state changes, deletion, resolution, and escalation are deliberately absent from this package contract.
+Retrieving thread detail does not implicitly change read state. Mark-read is an
+explicit idempotent operation and may use the configured bounded retry policy.
+Reply submission is never retried automatically: a timeout, abort, or lost
+response is reported as `AMBIGUOUS_RESULT`, and the caller must refresh the
+conversation before deciding whether to send again. Reply bodies are limited
+to 10,000 characters. The package does not log or persist message content.
+Mark-unread, deletion, resolution, and escalation remain outside this contract.
 
 ## Read-only seller payments
 

@@ -2,6 +2,13 @@
 
 All notable changes to this package will be documented here.
 
+## 0.11.0 - Unreleased
+
+- Add explicit seller-message thread mark-read and reply methods.
+- Retry only the idempotent mark-read operation; never retry a reply whose
+  remote result may be ambiguous.
+- Validate and bound reply text without logging or persisting message content.
+
 ## 0.10.0 - Unreleased
 
 - Add an optional authentication-required observer so applications can expire a

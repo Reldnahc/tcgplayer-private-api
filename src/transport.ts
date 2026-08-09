@@ -668,6 +668,46 @@ export class SellerApiTransport {
     );
   }
 
+  async sellerPortalMessagesIdempotentCommand(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    await this.sellerPortalMessagesCommand(path, body, "safe", signal);
+  }
+
+  async sellerPortalMessagesMutationCommand(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    await this.sellerPortalMessagesCommand(path, body, "never", signal);
+  }
+
+  private async sellerPortalMessagesCommand(
+    path: string,
+    body: unknown,
+    retryMode: RequestSpec["retryMode"],
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const result = await this.request({
+      method: "POST",
+      path,
+      ...(body === undefined ? {} : { body }),
+      origin: "seller-portal",
+      accept: "application/json",
+      retryMode,
+      discardResponseBody: true,
+      ...(signal === undefined ? {} : { signal }),
+    });
+    if (result.contentType === "text/html") {
+      throw this.authenticationRequired(
+        "TCGplayer returned an HTML page for a seller message change. Refresh the authorized session and reconcile the conversation.",
+        errorOptions(result.response),
+      );
+    }
+  }
+
   async messagesApiJson(path: string, signal?: AbortSignal): Promise<unknown> {
     return this.authenticatedJson(
       path,

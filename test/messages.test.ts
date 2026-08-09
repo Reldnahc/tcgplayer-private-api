@@ -190,6 +190,82 @@ describe("seller messages", () => {
     }
   });
 
+  it("marks a thread read and submits one non-retrying reply", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      new Response(null, { status: 204 }),
+      new Response(null, { status: 204 }),
+    ]);
+    const client = clientWith(fetchImplementation, {
+      retry: { maxRetries: 2, baseDelayMs: 0, maxDelayMs: 0 },
+    });
+
+    await expect(
+      client.markSellerMessageThreadRead({
+        sellerKey: syntheticSellerKey,
+        threadId: 123,
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      client.replyToSellerMessageThread({
+        sellerKey: syntheticSellerKey,
+        threadId: 123,
+        body: "  Synthetic reply.\r\nSecond line.  ",
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(requests.map((request) => request.url)).toEqual([
+      `https://store.tcgplayer.com/admin/sp-msg-api/${syntheticSellerKey}/threads/123/mark-as-read`,
+      `https://store.tcgplayer.com/admin/sp-msg-api/${syntheticSellerKey}/threads/123/reply`,
+    ]);
+    expect(requests[0]?.init?.method).toBe("POST");
+    expect(requests[0]?.init?.body).toBeUndefined();
+    expect(requests[1]?.init?.method).toBe("POST");
+    expect(requests[1]?.init?.body).toBe(
+      JSON.stringify({
+        replyMessageDto: { Body: "Synthetic reply.\nSecond line." },
+      }),
+    );
+    for (const request of requests) {
+      expect(new Headers(request.init?.headers).get("cookie")).toBe(
+        "TCGAuthTicket_Production=synthetic-cookie-value;",
+      );
+    }
+  });
+
+  it("retries idempotent read-state changes but never retries replies", async () => {
+    const readState = fetchQueue([
+      new Response(null, { status: 503 }),
+      new Response(null, { status: 204 }),
+    ]);
+    const readClient = clientWith(readState.fetchImplementation, {
+      retry: { maxRetries: 1, baseDelayMs: 0, maxDelayMs: 0 },
+    });
+    await expect(
+      readClient.markSellerMessageThreadRead({
+        sellerKey: syntheticSellerKey,
+        threadId: 123,
+      }),
+    ).resolves.toBeUndefined();
+    expect(readState.requests).toHaveLength(2);
+
+    let replyAttempts = 0;
+    const replyClient = clientWith(
+      () => {
+        replyAttempts += 1;
+        return Promise.reject(new Error("Synthetic network loss"));
+      },
+      { retry: { maxRetries: 2, baseDelayMs: 0, maxDelayMs: 0 } },
+    );
+    await expect(
+      replyClient.replyToSellerMessageThread({
+        sellerKey: syntheticSellerKey,
+        threadId: 123,
+        body: "Synthetic reply.",
+      }),
+    ).rejects.toMatchObject({ code: "AMBIGUOUS_RESULT" });
+    expect(replyAttempts).toBe(1);
+  });
+
   it("rejects malformed message responses and unsafe inputs", async () => {
     const malformedCount = clientWith(
       fetchQueue([jsonResponse({ count: -1 })]).fetchImplementation,
@@ -227,6 +303,19 @@ describe("seller messages", () => {
       mismatchedThread.listSellerMessageThreads({
         sellerKey: syntheticSellerKey,
         includeDeleted: "yes" as unknown as boolean,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    await expect(
+      mismatchedThread.markSellerMessageThreadRead({
+        sellerKey: syntheticSellerKey,
+        threadId: 0,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    await expect(
+      mismatchedThread.replyToSellerMessageThread({
+        sellerKey: syntheticSellerKey,
+        threadId: 123,
+        body: "\u0000",
       }),
     ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
   });

@@ -62,10 +62,12 @@ import type {
   ListSellerPayoutsInput,
   ListSellerPayoutsResult,
   MarketplaceProduct,
+  MarkSellerMessageThreadReadInput,
   OrderFulfillmentMutationResult,
   PackingSlipDocument,
   PullSheetDocument,
   RequestOptions,
+  ReplyToSellerMessageThreadInput,
   RemoveSellerInventoryInput,
   RemoveSellerInventoryResult,
   SearchSellerOrdersInput,
@@ -171,6 +173,46 @@ function requiredText(name: string, value: string, maximum: number): string {
     throw invalidArgument(`${name} must not contain control characters.`);
   }
   return normalized;
+}
+
+function sellerMessageBody(value: string): string {
+  if (typeof value !== "string") {
+    throw invalidArgument("body must be a string.");
+  }
+  const normalized = value.replace(/\r\n?/gu, "\n").trim();
+  if (normalized.length < 1 || normalized.length > 10_000) {
+    throw invalidArgument("body must contain 1-10000 characters.");
+  }
+  for (const character of normalized) {
+    const code = character.charCodeAt(0);
+    if (
+      (code <= 0x1f && character !== "\n" && character !== "\t") ||
+      code === 0x7f
+    ) {
+      throw invalidArgument(
+        "body must not contain unsupported control characters.",
+      );
+    }
+  }
+  return normalized;
+}
+
+function sellerMessageThreadTarget(
+  input: MarkSellerMessageThreadReadInput | ReplyToSellerMessageThreadInput,
+): { readonly sellerKey: string; readonly threadId: number } {
+  if (typeof input !== "object" || input === null) {
+    throw invalidArgument("Seller message thread input is required.");
+  }
+  return {
+    sellerKey: requiredText("sellerKey", input.sellerKey, 256),
+    threadId: boundedInteger(
+      "threadId",
+      input.threadId,
+      0,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    ),
+  };
 }
 
 function boundedInteger(
@@ -645,6 +687,31 @@ export class TcgplayerSellerClient {
       requestSignal(options),
     );
     return parseSellerUnreadMessageCount(response);
+  }
+
+  async markSellerMessageThreadRead(
+    input: MarkSellerMessageThreadReadInput,
+    options?: RequestOptions,
+  ): Promise<void> {
+    const { sellerKey, threadId } = sellerMessageThreadTarget(input);
+    await this.transport.sellerPortalMessagesIdempotentCommand(
+      `${SELLER_MESSAGES_PATH}/${encodeURIComponent(sellerKey)}/threads/${String(threadId)}/mark-as-read`,
+      undefined,
+      requestSignal(options),
+    );
+  }
+
+  async replyToSellerMessageThread(
+    input: ReplyToSellerMessageThreadInput,
+    options?: RequestOptions,
+  ): Promise<void> {
+    const { sellerKey, threadId } = sellerMessageThreadTarget(input);
+    const body = sellerMessageBody(input.body);
+    await this.transport.sellerPortalMessagesMutationCommand(
+      `${SELLER_MESSAGES_PATH}/${encodeURIComponent(sellerKey)}/threads/${String(threadId)}/reply`,
+      { replyMessageDto: { Body: body } },
+      requestSignal(options),
+    );
   }
 
   async listSellerPayouts(
