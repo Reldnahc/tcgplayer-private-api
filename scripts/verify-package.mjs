@@ -19,6 +19,44 @@ const childEnvironment = {
   ...env,
   npm_config_cache: join(temporaryRoot, "npm-cache"),
 };
+const clientMethods = [
+  "getAuthenticatedSeller",
+  "getSellerPaymentExperience",
+  "listLegacySellerPayments",
+  "listLegacyUpcomingSellerPayments",
+  "listSellerFeedback",
+  "getSellerFeedbackAggregation",
+  "listSellerMessageThreads",
+  "getSellerMessageThread",
+  "getSellerUnreadMessageCount",
+  "markSellerMessageThreadRead",
+  "replyToSellerMessageThread",
+  "listSellerPayouts",
+  "getSellerPayout",
+  "getSellerUnpaidBalance",
+  "searchOrders",
+  "getOrder",
+  "confirmOrder",
+  "exportPackingSlips",
+  "getPackingSlip",
+  "detectCarrier",
+  "exportPullSheet",
+  "addOrderTracking",
+  "shipOrderWithoutTracking",
+  "markOrdersShipped",
+  "getOrderRefundOptions",
+  "refundOrderFull",
+  "refundOrderPartial",
+  "searchMarketplaceProducts",
+  "searchMarketplaceProductListings",
+  "searchCatalogProducts",
+  "getCatalogProduct",
+  "listSellerInventory",
+  "updateSellerPrices",
+  "addSellerInventory",
+  "removeSellerInventory",
+];
+const clientMethodAssertions = JSON.stringify(clientMethods);
 if (
   !resolvedTemporaryRoot.startsWith(`${resolvedSystemTemp}\\`) &&
   !resolvedTemporaryRoot.startsWith(`${resolvedSystemTemp}/`)
@@ -74,7 +112,7 @@ try {
       'if (typeof createTcgplayerSellerClient !== "function") throw new Error("missing ESM client export");\n' +
       'if (typeof TcgplayerApiError !== "function") throw new Error("missing ESM error export");\n' +
       'const client = createTcgplayerSellerClient({ session: { authCookie: "synthetic-cookie" }, fetch: async () => { throw new Error("unexpected network call"); } });\n' +
-      'for (const method of ["exportPullSheet", "detectCarrier", "addOrderTracking", "shipOrderWithoutTracking", "markOrdersShipped", "listSellerFeedback", "getSellerFeedbackAggregation"]) if (typeof client[method] !== "function") throw new Error(`missing ESM ${method}`);\n',
+      `for (const method of ${clientMethodAssertions}) if (typeof client[method] !== "function") throw new Error(\`missing ESM \${method}\`);\n`,
   );
   await writeFile(
     cjsConsumer,
@@ -82,7 +120,7 @@ try {
       'if (typeof createTcgplayerSellerClient !== "function") throw new Error("missing CJS client export");\n' +
       'if (typeof TcgplayerApiError !== "function") throw new Error("missing CJS error export");\n' +
       'const client = createTcgplayerSellerClient({ session: { authCookie: "synthetic-cookie" }, fetch: async () => { throw new Error("unexpected network call"); } });\n' +
-      'for (const method of ["exportPullSheet", "detectCarrier", "addOrderTracking", "shipOrderWithoutTracking", "markOrdersShipped", "listSellerFeedback", "getSellerFeedbackAggregation"]) if (typeof client[method] !== "function") throw new Error(`missing CJS ${method}`);\n',
+      `for (const method of ${clientMethodAssertions}) if (typeof client[method] !== "function") throw new Error(\`missing CJS \${method}\`);\n`,
   );
 
   execFileSync(execPath, [esmConsumer], {
