@@ -1,5 +1,5 @@
 import { TcgplayerApiError } from "./errors.js";
-import type { PullSheetRow } from "./types.js";
+import type { PullSheetOrderAllocation, PullSheetRow } from "./types.js";
 
 const COLUMNS = [
   "Product Line",
@@ -21,7 +21,10 @@ const MAXIMUM_ORDER_ALLOCATIONS = 500;
 const MAXIMUM_ORDER_NUMBER_LENGTH = 128;
 const ORDER_SUMMARY_LABEL = "Orders Contained in Pull Sheet:";
 
-export function parsePullSheetRows(text: string): readonly PullSheetRow[] {
+export function parsePullSheetRows(
+  text: string,
+  expectedOrderNumbers: readonly string[],
+): readonly PullSheetRow[] {
   const records = parseCsv(text.replace(/^\uFEFF/u, ""));
   const header = records.shift();
   if (
@@ -32,20 +35,37 @@ export function parsePullSheetRows(text: string): readonly PullSheetRow[] {
     throw invalidPullSheet("unsupported column schema");
   }
   removeTrailingBlankRecords(records);
-  removeOrderSummary(records);
+  const summaryOrderNumbers = removeOrderSummary(records);
+  if (
+    summaryOrderNumbers !== undefined &&
+    !sameStringSet(summaryOrderNumbers, expectedOrderNumbers)
+  ) {
+    throw invalidPullSheet("order summary does not match the request");
+  }
   if (records.length > MAXIMUM_ROWS) {
     throw invalidPullSheet("too many product rows");
   }
-  return records.map((record, index) => parseRow(record, index));
+  return records.map((record, index) =>
+    parseRow(record, index, expectedOrderNumbers),
+  );
 }
 
-function parseRow(record: readonly string[], index: number): PullSheetRow {
+function parseRow(
+  record: readonly string[],
+  index: number,
+  expectedOrderNumbers: readonly string[],
+): PullSheetRow {
   if (record.length !== COLUMNS.length) {
     throw invalidPullSheet(
       `row ${String(index + 1)} has the wrong column count`,
     );
   }
   const quantity = integerField(record[6], index, "Quantity");
+  const orderQuantity = orderQuantityField(
+    record[10],
+    index,
+    expectedOrderNumbers,
+  );
   return {
     productLine: textField(record[0], index, "Product Line"),
     productName: textField(record[1], index, "Product Name", true),
@@ -57,7 +77,8 @@ function parseRow(record: readonly string[], index: number): PullSheetRow {
     mainPhotoUrl: textField(record[7], index, "Main Photo URL"),
     setReleaseDate: textField(record[8], index, "Set Release Date"),
     skuId: textField(record[9], index, "SkuId", true),
-    orderQuantity: orderQuantityField(record[10], index),
+    orderQuantity: orderQuantity.total,
+    orderAllocations: orderQuantity.allocations,
   };
 }
 
@@ -67,9 +88,11 @@ function removeTrailingBlankRecords(records: string[][]): void {
   }
 }
 
-function removeOrderSummary(records: string[][]): void {
+function removeOrderSummary(
+  records: string[][],
+): readonly string[] | undefined {
   const summary = records.at(-1);
-  if (summary?.[0]?.trim() !== ORDER_SUMMARY_LABEL) return;
+  if (summary?.[0]?.trim() !== ORDER_SUMMARY_LABEL) return undefined;
   if (summary.length !== 2) {
     throw invalidPullSheet("malformed order summary");
   }
@@ -88,34 +111,49 @@ function removeOrderSummary(records: string[][]): void {
     throw invalidPullSheet("malformed order summary");
   }
   records.pop();
+  return orderNumbers;
 }
 
 function orderQuantityField(
   value: string | undefined,
   rowIndex: number,
-): number {
+  expectedOrderNumbers: readonly string[],
+): {
+  readonly total: number;
+  readonly allocations: readonly PullSheetOrderAllocation[];
+} {
   const normalized = textField(value, rowIndex, "Order Quantity", true);
   if (/^\d{1,9}$/u.test(normalized)) {
-    return integerField(normalized, rowIndex, "Order Quantity");
+    const total = integerField(normalized, rowIndex, "Order Quantity");
+    return {
+      total,
+      allocations:
+        expectedOrderNumbers.length === 1
+          ? [{ orderNumber: expectedOrderNumbers[0] ?? "", quantity: total }]
+          : [],
+    };
   }
-  const allocations = normalized.split("|").map((item) => item.trim());
+  const encodedAllocations = normalized.split("|").map((item) => item.trim());
   if (
-    allocations.length === 0 ||
-    allocations.length > MAXIMUM_ORDER_ALLOCATIONS
+    encodedAllocations.length === 0 ||
+    encodedAllocations.length > MAXIMUM_ORDER_ALLOCATIONS
   ) {
     throw invalidPullSheet(
       `row ${String(rowIndex + 1)} has an invalid Order Quantity`,
     );
   }
+  const expected = new Set(expectedOrderNumbers);
   const seenOrderNumbers = new Set<string>();
+  const allocations: PullSheetOrderAllocation[] = [];
   let total = 0;
-  for (const allocation of allocations) {
+  for (const allocation of encodedAllocations) {
     const separator = allocation.lastIndexOf(":");
     const orderNumber = allocation.slice(0, separator).trim();
     const quantity = allocation.slice(separator + 1).trim();
     if (
       separator <= 0 ||
       !validOrderNumber(orderNumber) ||
+      !expected.has(orderNumber) ||
       seenOrderNumbers.has(orderNumber) ||
       !/^\d{1,9}$/u.test(quantity)
     ) {
@@ -130,6 +168,7 @@ function orderQuantityField(
       );
     }
     seenOrderNumbers.add(orderNumber);
+    allocations.push({ orderNumber, quantity: parsed });
     total += parsed;
     if (!Number.isSafeInteger(total)) {
       throw invalidPullSheet(
@@ -137,7 +176,19 @@ function orderQuantityField(
       );
     }
   }
-  return total;
+  return { total, allocations };
+}
+
+function sameStringSet(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  if (left.length !== right.length) return false;
+  const rightValues = new Set(right);
+  return (
+    rightValues.size === right.length &&
+    left.every((item) => rightValues.has(item))
+  );
 }
 
 function validOrderNumber(value: string): boolean {

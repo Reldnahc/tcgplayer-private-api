@@ -59,6 +59,7 @@ export type {
   OrderRefundMutationResult,
   PackingSlipDocument,
   PullSheetDocument,
+  PullSheetOrderAllocation,
   PullSheetRow,
   RefundOrderFullInput,
   RefundOrderPartialInput,

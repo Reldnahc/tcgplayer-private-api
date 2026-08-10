@@ -505,6 +505,9 @@ describe("TcgplayerSellerClient orders and fulfillment", () => {
           setReleaseDate: "2026-01-01",
           skuId: "200000",
           orderQuantity: 1,
+          orderAllocations: [
+            { orderNumber: syntheticOrderNumber, quantity: 1 },
+          ],
         },
       ],
     });
@@ -539,6 +542,93 @@ describe("TcgplayerSellerClient orders and fulfillment", () => {
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0]?.quantity).toBe(3);
     expect(result.rows[0]?.orderQuantity).toBe(3);
+    expect(result.rows[0]?.orderAllocations).toEqual([
+      { orderNumber: syntheticOrderNumber, quantity: 1 },
+      { orderNumber: secondOrderNumber, quantity: 2 },
+    ]);
+  });
+
+  it("associates a legacy numeric allocation only with a single requested order", async () => {
+    const numericPullSheet = syntheticPullSheet.replace(
+      `${syntheticOrderNumber}:1`,
+      "1",
+    );
+    const { fetchImplementation } = fetchQueue([
+      new Response(numericPullSheet, {
+        headers: { "content-type": "text/csv" },
+      }),
+    ]);
+
+    const result = await clientWith(fetchImplementation).exportPullSheet({
+      orderNumbers: [syntheticOrderNumber],
+      timezoneOffsetMinutes: 0,
+    });
+
+    expect(result.rows[0]?.orderAllocations).toEqual([
+      { orderNumber: syntheticOrderNumber, quantity: 1 },
+    ]);
+  });
+
+  it("does not guess a legacy numeric allocation across multiple requested orders", async () => {
+    const secondOrderNumber = "11111111111111111";
+    const numericPullSheet = syntheticPullSheet
+      .replace(`${syntheticOrderNumber}:1`, "1")
+      .replace(
+        `Orders Contained in Pull Sheet:,${syntheticOrderNumber}`,
+        `Orders Contained in Pull Sheet:,${syntheticOrderNumber}|${secondOrderNumber}`,
+      );
+    const { fetchImplementation } = fetchQueue([
+      new Response(numericPullSheet, {
+        headers: { "content-type": "text/csv" },
+      }),
+    ]);
+
+    const result = await clientWith(fetchImplementation).exportPullSheet({
+      orderNumbers: [syntheticOrderNumber, secondOrderNumber],
+      timezoneOffsetMinutes: 0,
+    });
+
+    expect(result.rows[0]?.orderQuantity).toBe(1);
+    expect(result.rows[0]?.orderAllocations).toEqual([]);
+  });
+
+  it("rejects a pull-sheet order summary that does not match the request", async () => {
+    const mismatchedPullSheet = syntheticPullSheet.replace(
+      `Orders Contained in Pull Sheet:,${syntheticOrderNumber}`,
+      "Orders Contained in Pull Sheet:,11111111111111111",
+    );
+    const { fetchImplementation } = fetchQueue([
+      new Response(mismatchedPullSheet, {
+        headers: { "content-type": "text/csv" },
+      }),
+    ]);
+
+    await expect(
+      clientWith(fetchImplementation).exportPullSheet({
+        orderNumbers: [syntheticOrderNumber],
+        timezoneOffsetMinutes: 0,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("rejects pull-sheet allocations outside the requested orders", async () => {
+    const unexpectedOrder = "11111111111111111";
+    const mismatchedPullSheet = syntheticPullSheet.replace(
+      `${syntheticOrderNumber}:1`,
+      `${unexpectedOrder}:1`,
+    );
+    const { fetchImplementation } = fetchQueue([
+      new Response(mismatchedPullSheet, {
+        headers: { "content-type": "text/csv" },
+      }),
+    ]);
+
+    await expect(
+      clientWith(fetchImplementation).exportPullSheet({
+        orderNumbers: [syntheticOrderNumber],
+        timezoneOffsetMinutes: 0,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
   });
 
   it("rejects a pull sheet whose columns have drifted", async () => {

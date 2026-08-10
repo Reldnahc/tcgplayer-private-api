@@ -191,6 +191,11 @@ export interface PullSheetDocument {
   readonly rows: readonly PullSheetRow[];
 }
 
+export interface PullSheetOrderAllocation {
+  readonly orderNumber: string;
+  readonly quantity: number;
+}
+
 export interface PullSheetRow {
   readonly productLine: string;
   readonly productName: string;
@@ -203,6 +208,7 @@ export interface PullSheetRow {
   readonly setReleaseDate: string;
   readonly skuId: string;
   readonly orderQuantity: number;
+  readonly orderAllocations: readonly PullSheetOrderAllocation[];
 }
 
 export interface AddOrderTrackingInput {

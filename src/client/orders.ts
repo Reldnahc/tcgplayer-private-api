@@ -280,7 +280,7 @@ export class SellerOrderClient extends SellerClientCore {
       { orderNumbers, timezoneOffset: timezoneOffsetMinutes },
       requestSignal(options),
     );
-    const rows = parsePullSheetRows(text);
+    const rows = parsePullSheetRows(text, orderNumbers);
     return {
       text,
       contentType: "text/csv",

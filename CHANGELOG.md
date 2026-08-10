@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.15.0 - Unreleased
+
+- Preserve each validated order-number and quantity allocation on typed
+  pull-sheet rows so consumers can track per-order picking progress without
+  reparsing provider CSV.
+
 ## 0.14.1 - Unreleased
 
 - Accept TCGplayer's per-order pull-sheet allocation format, sum each product
