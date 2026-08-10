@@ -20,6 +20,9 @@
     "CHANGELOG.md",
     "SECURITY.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false,
   "engines": {
     "node": ">=20.19.0"
@@ -52,7 +55,7 @@
     "feedback",
     "messages"
   ],
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Reldnahc/tcgplayer-private-api.git"

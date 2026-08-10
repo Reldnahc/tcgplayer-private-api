@@ -7,6 +7,8 @@ All notable changes to this package will be documented here.
 - Accept TCGplayer's per-order pull-sheet allocation format, sum each product
   row's requested quantity, and omit the trailing order-summary record from
   typed rows.
+- Adopt the MIT License and declare public npm registry access for future
+  publication.
 
 ## 0.14.0 - Unreleased
 

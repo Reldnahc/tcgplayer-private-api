@@ -6,7 +6,7 @@ This project is not affiliated with, endorsed by, or supported by TCGplayer. The
 
 ## Status
 
-The package is under initial development and has not been published to the public npm registry. Its current license is `UNLICENSED` until the repository owner chooses a distribution license.
+The package is under initial development and has not been published to the public npm registry. When published, it is configured for public npm access.
 
 ## Requirements
 
@@ -445,3 +445,7 @@ To check an exact order, add `TCGPLAYER_ORDER_NUMBER`. To retrieve and validate 
 Tracking, shipment, price-update, and inventory-add methods are covered with synthetic contract tests. Exercise mutations against a real account only with a deliberately selected order or listing and operator supervision.
 
 See [docs/PROVENANCE.md](docs/PROVENANCE.md) for the behavioral reference and clean implementation boundary.
+
+## License
+
+Licensed under the [MIT License](LICENSE).

@@ -140,6 +140,7 @@ try {
     "dist/index.js",
     "dist/index.cjs",
     "dist/index.d.ts",
+    "LICENSE",
     "README.md",
   ]) {
     if (!packedPaths.includes(required)) {
