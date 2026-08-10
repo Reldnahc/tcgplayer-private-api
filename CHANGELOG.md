@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.14.1 - Unreleased
+
+- Accept TCGplayer's per-order pull-sheet allocation format, sum each product
+  row's requested quantity, and omit the trailing order-summary record from
+  typed rows.
+
 ## 0.14.0 - Unreleased
 
 - Preserve validated, provider-supplied card colors on catalog summaries,

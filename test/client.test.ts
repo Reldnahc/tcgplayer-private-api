@@ -2080,6 +2080,33 @@ describe("TcgplayerSellerClient", () => {
     });
   });
 
+  it("sums per-order allocations in a pull-sheet row", async () => {
+    const secondOrderNumber = "11111111111111111";
+    const allocatedPullSheet = syntheticPullSheet
+      .replace(
+        `Rare,1,https://example.invalid/card,2026-01-01,200000,${syntheticOrderNumber}:1`,
+        `Rare,3,https://example.invalid/card,2026-01-01,200000,${syntheticOrderNumber}:1 | ${secondOrderNumber}:2`,
+      )
+      .replace(
+        `Orders Contained in Pull Sheet:,${syntheticOrderNumber}`,
+        `Orders Contained in Pull Sheet:,${syntheticOrderNumber}|${secondOrderNumber}`,
+      );
+    const { fetchImplementation } = fetchQueue([
+      new Response(allocatedPullSheet, {
+        headers: { "content-type": "text/csv" },
+      }),
+    ]);
+
+    const result = await clientWith(fetchImplementation).exportPullSheet({
+      orderNumbers: [syntheticOrderNumber, secondOrderNumber],
+      timezoneOffsetMinutes: 0,
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.quantity).toBe(3);
+    expect(result.rows[0]?.orderQuantity).toBe(3);
+  });
+
   it("rejects a pull sheet whose columns have drifted", async () => {
     const { fetchImplementation } = fetchQueue([
       new Response("Unknown,Columns\r\nvalue,value\r\n", {
@@ -2098,8 +2125,8 @@ describe("TcgplayerSellerClient", () => {
 
   it("rejects malformed pull-sheet rows", async () => {
     const malformed = syntheticPullSheet.replace(
-      ",200000,1\r\n",
-      ',200000,"not a quantity"\r\n',
+      `,200000,${syntheticOrderNumber}:1\r\n`,
+      ',200000,"not an allocation"\r\n',
     );
     const { fetchImplementation } = fetchQueue([
       new Response(malformed, {

@@ -435,7 +435,10 @@ TCGPLAYER_AUTH_COOKIE=... TCGPLAYER_SELLER_KEY=... npm run compatibility:check
 
 `exportPullSheet` preserves the validated CSV as `text` and also returns typed
 `rows` for consumers that need to display or render a pull list without parsing
-TCGplayer's document format themselves.
+TCGplayer's document format themselves. TCGplayer encodes each row's order
+allocation as `ORDER:quantity` entries; the client validates those entries,
+omits the trailing order-summary record, and exposes their summed quantity as
+`PullSheetRow.orderQuantity`.
 
 To check an exact order, add `TCGPLAYER_ORDER_NUMBER`. To retrieve and validate its packing slip or pull sheet in memory, explicitly set `TCGPLAYER_CHECK_PACKING_SLIP=1` or `TCGPLAYER_CHECK_PULL_SHEET=1`. The script never writes order data or documents to disk.
 

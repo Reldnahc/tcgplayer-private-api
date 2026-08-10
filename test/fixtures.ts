@@ -84,4 +84,5 @@ export const syntheticPdf = new TextEncoder().encode(
 
 export const syntheticPullSheet =
   "Product Line,Product Name,Condition,Number,Set,Rarity,Quantity,Main Photo URL,Set Release Date,SkuId,Order Quantity\r\n" +
-  'Example Game,"Example, Card",Near Mint,1,Example Set,Rare,1,https://example.invalid/card,2026-01-01,200000,1\r\n';
+  `Example Game,"Example, Card",Near Mint,1,Example Set,Rare,1,https://example.invalid/card,2026-01-01,200000,${syntheticOrderNumber}:1\r\n` +
+  `Orders Contained in Pull Sheet:,${syntheticOrderNumber}\r\n`;
