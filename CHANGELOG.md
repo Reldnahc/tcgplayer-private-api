@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.16.0 - Unreleased
+
+- Add validated, batched exact-SKU market-price reads so consumers can price
+  the precise condition, printing, and language represented by a
+  ProductConditionId.
+
 ## 0.15.0 - Unreleased
 
 - Preserve each validated order-number and quantity allocation on typed

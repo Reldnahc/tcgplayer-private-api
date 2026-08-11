@@ -583,6 +583,54 @@ describe("TcgplayerSellerClient catalog and inventory", () => {
     });
   });
 
+  it("reads exact-SKU market prices in one validated batch", async () => {
+    const { fetchImplementation, requests } = fetchQueue([
+      jsonResponse([
+        { skuId: 457, marketPrice: 18.25 },
+        { skuId: 456, marketPrice: 0.82 },
+      ]),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    const result = await client.getSkuMarketPrices({
+      productConditionIds: [456, 457, 458],
+    });
+
+    expect(result).toEqual({
+      prices: [
+        { productConditionId: 456, marketPrice: 0.82 },
+        { productConditionId: 457, marketPrice: 18.25 },
+      ],
+    });
+    expect(requests[0]?.url).toBe(
+      "https://mpgateway.tcgplayer.com/v1/pricepoints/marketprice/skus/search",
+    );
+    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
+      skuIds: [456, 457, 458],
+    });
+  });
+
+  it("rejects an unexpected SKU in a market-price response", async () => {
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse([{ skuId: 999, marketPrice: 4.5 }]),
+    ]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.getSkuMarketPrices({ productConditionIds: [456] }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
+
+  it("rejects duplicate exact-SKU market-price inputs", async () => {
+    const { fetchImplementation, requests } = fetchQueue([]);
+    const client = clientWith(fetchImplementation);
+
+    await expect(
+      client.getSkuMarketPrices({ productConditionIds: [456, 456] }),
+    ).rejects.toMatchObject({ code: "INVALID_ARGUMENT" });
+    expect(requests).toHaveLength(0);
+  });
+
   it("reads a catalog product and maps its SKU conditions", async () => {
     const { fetchImplementation, requests } = fetchQueue([
       jsonResponse({

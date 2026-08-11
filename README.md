@@ -117,6 +117,7 @@ const packingSlip = await client.getPackingSlip({
 - `getCatalogProduct(input, options?)`
 - `searchMarketplaceProducts(input, options?)`
 - `searchMarketplaceProductListings(input, options?)`
+- `getSkuMarketPrices(input, options?)`
 - `listSellerInventory(input, options?)`
 - `updateSellerPrices(input, options?)`
 - `addSellerInventory(input, options?)`
@@ -287,6 +288,18 @@ reconcile the order in TCGplayer before considering any further refund.
 ## Price updates
 
 Use `listSellerInventory` to page through a seller's live listings and `searchMarketplaceProducts` to retrieve bounded product search results. Product-search responses may contain only TCGplayer's small embedded spotlight sample even when `totalListings` is much larger; consumers must not interpret that product-level count as the number of returned comparable records. Exact `productIds` may be batched in groups of 24, and returned products include the optional `colors` field when TCGplayer defines color metadata for that product line. Use `searchMarketplaceProductListings` when pricing requires TCGplayer's explicitly filtered, sorted, and paginated listing rows for one product. Both marketplace methods include an explicit U.S. buyer context. The package exposes the observed marketplace data but deliberately does not choose a pricing strategy; consumers own rules such as minimums, condition matching, shipping normalization, and whether to raise or lower a price.
+
+Product-level `marketPrice` does not identify a listing's condition, printing,
+or language. Use `getSkuMarketPrices` with the listing's
+`productConditionId` when pricing requires the market price for that exact SKU.
+The read accepts 1-24 distinct identifiers per request and may omit SKUs for
+which TCGplayer returns no price point.
+
+```ts
+const result = await client.getSkuMarketPrices({
+  productConditionIds: [123456, 123457],
+});
+```
 
 `listSellerInventory` accepts an optional `onProgress` callback in its request options. Each validated page reports its channel, pages loaded, products loaded, and TCGplayer-reported total. Progress reporting observes the existing pagination and never creates an additional marketplace request.
 

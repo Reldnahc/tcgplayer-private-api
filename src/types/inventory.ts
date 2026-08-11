@@ -239,6 +239,22 @@ export interface SearchMarketplaceProductListingsResult {
   readonly listings: readonly MarketplaceListing[];
 }
 
+export interface GetSkuMarketPricesInput {
+  /** Exact TCGplayer SKU identifiers, exposed elsewhere as ProductConditionId. */
+  readonly productConditionIds: readonly number[];
+}
+
+export interface SkuMarketPrice {
+  /** Exact TCGplayer SKU identifier, exposed elsewhere as ProductConditionId. */
+  readonly productConditionId: number;
+  readonly marketPrice: number;
+}
+
+export interface GetSkuMarketPricesResult {
+  /** Requested SKUs with a currently available TCGplayer market price. */
+  readonly prices: readonly SkuMarketPrice[];
+}
+
 export interface ListSellerInventoryInput {
   readonly sellerKey: string;
   readonly channelId?: number;

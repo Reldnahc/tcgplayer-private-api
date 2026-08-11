@@ -22,6 +22,8 @@ import type {
   GetSellerPaymentExperienceInput,
   GetSellerPayoutInput,
   GetSellerUnpaidBalanceInput,
+  GetSkuMarketPricesInput,
+  GetSkuMarketPricesResult,
   ListLegacySellerPaymentsInput,
   ListLegacySellerPaymentsResult,
   ListLegacyUpcomingSellerPaymentsResult,
@@ -294,6 +296,13 @@ export class TcgplayerSellerClient {
     options?: RequestOptions,
   ): Promise<CatalogProductDetails> {
     return this.marketplace.getCatalogProduct(input, options);
+  }
+
+  getSkuMarketPrices(
+    input: GetSkuMarketPricesInput,
+    options?: RequestOptions,
+  ): Promise<GetSkuMarketPricesResult> {
+    return this.marketplace.getSkuMarketPrices(input, options);
   }
 
   listSellerInventory(

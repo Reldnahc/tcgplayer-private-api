@@ -5,6 +5,7 @@ import type {
   CatalogProductSku,
   CatalogProductSummary,
   CatalogSetFacet,
+  GetSkuMarketPricesResult,
   SearchCatalogProductsResult,
 } from "./types.js";
 
@@ -319,6 +320,29 @@ export function parseCatalogSkuMarketPrices(
     prices.set(skuId, finite(price.marketPrice, `${path}.marketPrice`));
   }
   return prices;
+}
+
+export function parseRequestedSkuMarketPrices(
+  value: unknown,
+  productConditionIds: readonly number[],
+): GetSkuMarketPricesResult {
+  const parsed = parseCatalogSkuMarketPrices(value);
+  const requested = new Set(productConditionIds);
+  for (const productConditionId of parsed.keys()) {
+    if (!requested.has(productConditionId)) {
+      return invalidResponse(
+        `response contains unrequested SKU ${String(productConditionId)}.`,
+      );
+    }
+  }
+  return {
+    prices: productConditionIds.flatMap((productConditionId) => {
+      const marketPrice = parsed.get(productConditionId);
+      return marketPrice === undefined
+        ? []
+        : [{ productConditionId, marketPrice }];
+    }),
+  };
 }
 
 export function withCatalogFoilMarketPrices(

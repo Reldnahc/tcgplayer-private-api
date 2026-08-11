@@ -2,6 +2,7 @@ import { invalidArgument, TcgplayerApiError } from "../errors.js";
 import {
   parseCatalogFoilSkuIds,
   parseCatalogProduct,
+  parseRequestedSkuMarketPrices,
   parseCatalogSearch,
   parseCatalogSkuMarketPrices,
   rankCatalogProducts,
@@ -13,6 +14,8 @@ import {
 } from "../marketplace-validation.js";
 import type {
   CatalogProductDetails,
+  GetSkuMarketPricesInput,
+  GetSkuMarketPricesResult,
   GetCatalogProductInput,
   ListSellerInventoryInput,
   ListSellerInventoryOptions,
@@ -29,6 +32,7 @@ import {
   boundedInteger,
   requestSignal,
   requiredText,
+  uniqueProductConditionIds,
   uniqueProductIds,
   uniqueTextValues,
 } from "./input.js";
@@ -317,6 +321,27 @@ export class SellerMarketplaceClient extends SellerClientCore {
         undefined,
         requestSignal(options),
       ),
+    );
+  }
+
+  async getSkuMarketPrices(
+    input: GetSkuMarketPricesInput,
+    options?: RequestOptions,
+  ): Promise<GetSkuMarketPricesResult> {
+    if (typeof input !== "object" || input === null) {
+      throw invalidArgument("SKU market-price input is required.");
+    }
+    const productConditionIds = uniqueProductConditionIds(
+      input.productConditionIds,
+    );
+    return parseRequestedSkuMarketPrices(
+      await this.transport.marketplaceGatewayJson(
+        "POST",
+        MARKETPLACE_SKU_PRICE_PATH,
+        { skuIds: productConditionIds },
+        requestSignal(options),
+      ),
+      productConditionIds,
     );
   }
 

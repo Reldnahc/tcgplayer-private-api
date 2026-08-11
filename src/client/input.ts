@@ -214,6 +214,25 @@ export function uniqueProductIds(
   return normalized;
 }
 
+export function uniqueProductConditionIds(values: readonly number[]): number[] {
+  if (!Array.isArray(values) || values.length === 0 || values.length > 24) {
+    throw invalidArgument("productConditionIds must contain 1-24 values.");
+  }
+  const normalized = values.map((value, index) =>
+    boundedInteger(
+      `productConditionIds[${String(index)}]`,
+      value,
+      0,
+      1,
+      Number.MAX_SAFE_INTEGER,
+    ),
+  );
+  if (new Set(normalized).size !== normalized.length) {
+    throw invalidArgument("productConditionIds must not contain duplicates.");
+  }
+  return normalized;
+}
+
 export function isShippedStatus(status: string): boolean {
   const normalized = status.trim().toLowerCase();
   return normalized.startsWith("shipped") || normalized === "delivered";
