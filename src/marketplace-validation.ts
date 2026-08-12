@@ -169,6 +169,14 @@ function parseProduct(value: unknown, path: string): MarketplaceProduct {
     parsedColors === undefined || parsedColors.length === 0
       ? undefined
       : [...new Set(parsedColors)];
+  const parsedCardTypes = optionalStringArray(
+    customAttributes.cardType,
+    `${path}.customAttributes.cardType`,
+  );
+  const cardTypes =
+    parsedCardTypes === undefined || parsedCardTypes.length === 0
+      ? undefined
+      : [...new Set(parsedCardTypes)];
   return {
     productId: integer(source.productId, `${path}.productId`),
     productName: text(source.productName, `${path}.productName`),
@@ -176,6 +184,7 @@ function parseProduct(value: unknown, path: string): MarketplaceProduct {
     setName: text(source.setName, `${path}.setName`),
     rarityName: optionalText(source.rarityName, `${path}.rarityName`),
     ...(colors === undefined ? {} : { colors }),
+    ...(cardTypes === undefined ? {} : { cardTypes }),
     marketPrice: finite(source.marketPrice ?? 0, `${path}.marketPrice`),
     ...(lowestPrice === undefined ? {} : { lowestPrice }),
     ...(lowestPriceWithShipping === undefined

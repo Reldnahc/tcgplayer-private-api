@@ -15,7 +15,7 @@ describe("TcgplayerSellerClient catalog and inventory", () => {
       productLineName: "Synthetic Game",
       setName: "Synthetic Set",
       rarityName: null,
-      customAttributes: { color: ["Blue"] },
+      customAttributes: { color: ["Blue"], cardType: ["Creature"] },
       marketPrice: 3.5,
       lowestPrice: 3.25,
       lowestPriceWithShipping: 4.24,
@@ -61,6 +61,7 @@ describe("TcgplayerSellerClient catalog and inventory", () => {
       productName: "Synthetic Card",
       rarityName: "",
       colors: ["Blue"],
+      cardTypes: ["Creature"],
       listings: [
         {
           productConditionId: 456,
@@ -676,7 +677,7 @@ describe("TcgplayerSellerClient catalog and inventory", () => {
     expect(requests[0]?.init?.body).toBeUndefined();
   });
 
-  it("omits empty provider color metadata", async () => {
+  it("omits empty provider color and card-type metadata", async () => {
     const { fetchImplementation } = fetchQueue([
       jsonResponse({
         errors: [],
@@ -690,7 +691,7 @@ describe("TcgplayerSellerClient catalog and inventory", () => {
                 productLineName: "Synthetic Game",
                 setName: "Synthetic Set",
                 rarityName: "Rare",
-                customAttributes: { color: [] },
+                customAttributes: { color: [], cardType: [] },
                 marketPrice: 3.5,
                 lowestPrice: 3,
                 lowestPriceWithShipping: 4.49,
@@ -710,6 +711,39 @@ describe("TcgplayerSellerClient catalog and inventory", () => {
     });
 
     expect(result.products[0]).not.toHaveProperty("colors");
+    expect(result.products[0]).not.toHaveProperty("cardTypes");
+  });
+
+  it("rejects malformed provider card-type metadata", async () => {
+    const { fetchImplementation } = fetchQueue([
+      jsonResponse({
+        errors: [],
+        results: [
+          {
+            totalResults: 1,
+            results: [
+              {
+                productId: 123,
+                productName: "Synthetic Land",
+                productLineName: "Synthetic Game",
+                setName: "Synthetic Set",
+                rarityName: "Land",
+                customAttributes: { color: ["Colorless"], cardType: "Land" },
+                marketPrice: 0.25,
+                totalListings: 1,
+                listings: [],
+              },
+            ],
+          },
+        ],
+      }),
+    ]);
+
+    await expect(
+      clientWith(fetchImplementation).searchMarketplaceProducts({
+        productIds: [123],
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
   });
 
   it("submits a price-only update using the observed Seller Portal form contract", async () => {

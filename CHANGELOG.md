@@ -2,6 +2,11 @@
 
 All notable changes to this package will be documented here.
 
+## 0.17.0 - Unreleased
+
+- Preserve validated, provider-supplied card types on marketplace-product
+  batches so consumers can distinguish lands from other colorless products.
+
 ## 0.16.0 - Unreleased
 
 - Add validated, batched exact-SKU market-price reads so consumers can price

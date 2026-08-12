@@ -193,6 +193,8 @@ export interface MarketplaceProduct {
   readonly rarityName: string;
   /** Provider-supplied card colors when the product line defines them. */
   readonly colors?: readonly string[];
+  /** Provider-supplied card types when the product line defines them. */
+  readonly cardTypes?: readonly string[];
   readonly marketPrice: number;
   readonly lowestPrice?: number;
   readonly lowestPriceWithShipping?: number;
