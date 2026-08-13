@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.18.1 - Unreleased
+
+- Do not notify the global authentication observer when a request that
+  deliberately omitted the seller-session cookie receives an authentication
+  response.
+
 ## 0.18.0 - Unreleased
 
 - Allow callers to attach a non-secret revision to replaceable sessions and

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   clientWith,
   fetchQueue,
@@ -476,6 +476,19 @@ describe("TcgplayerSellerClient account data", () => {
       expect(request.init?.method).toBe("GET");
       expect(new Headers(request.init?.headers).get("cookie")).toBeNull();
     }
+  });
+
+  it("does not invalidate the seller session when a cookie-free feedback request is unauthorized", async () => {
+    const { fetchImplementation } = fetchQueue([jsonResponse({}, 401)]);
+    const onAuthenticationRequired = vi.fn();
+    const client = clientWith(fetchImplementation, {
+      onAuthenticationRequired,
+    });
+
+    await expect(
+      client.listSellerFeedback({ sellerKey: syntheticSellerKey }),
+    ).rejects.toMatchObject({ code: "AUTHENTICATION_REQUIRED" });
+    expect(onAuthenticationRequired).not.toHaveBeenCalled();
   });
 
   it("rejects cross-seller and malformed seller feedback", async () => {

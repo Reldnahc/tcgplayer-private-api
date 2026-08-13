@@ -621,7 +621,9 @@ export class SellerHttpTransport {
         };
       } catch (error) {
         if (isTcgplayerApiError(error)) {
-          this.notifyAuthenticationRequired(error, session.revision);
+          if (spec.sendSessionCookie !== false) {
+            this.notifyAuthenticationRequired(error, session.revision);
+          }
           throw error;
         }
         if (spec.signal?.aborted) {
