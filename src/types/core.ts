@@ -7,12 +7,20 @@ export interface TcgplayerSession {
   readonly authCookie: string;
   /** Optional caller-selected user agent. It must not contain control characters. */
   readonly userAgent?: string;
+  /** Optional caller-owned revision used to correlate authentication failures with replaceable credentials. */
+  readonly revision?: string;
 }
 
 export type TcgplayerSessionProvider = () => Awaitable<TcgplayerSession>;
 
+export interface TcgplayerAuthenticationRequiredContext {
+  /** The revision of the session used by the failed request, when supplied by the caller. */
+  readonly sessionRevision?: string;
+}
+
 export type TcgplayerAuthenticationRequiredHandler = (
   error: TcgplayerApiError,
+  context: TcgplayerAuthenticationRequiredContext,
 ) => Awaitable<void>;
 
 export interface RetryOptions {

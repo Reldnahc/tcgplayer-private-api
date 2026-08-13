@@ -77,6 +77,7 @@ export interface BinaryResponse {
 
 export interface RawResponse extends BinaryResponse {
   readonly response: Response;
+  readonly sessionRevision?: string;
 }
 
 class RequestStartGate {
@@ -181,10 +182,15 @@ function validateSession(value: TcgplayerSession): TcgplayerSession {
     value.userAgent === undefined
       ? undefined
       : safeHeaderValue("session.userAgent", value.userAgent, 512);
+  const revision =
+    value.revision === undefined
+      ? undefined
+      : safeHeaderValue("session.revision", value.revision, 128);
 
   return {
     authCookie,
     ...(userAgent === undefined ? {} : { userAgent }),
+    ...(revision === undefined ? {} : { revision }),
   };
 }
 
@@ -448,7 +454,10 @@ export class SellerHttpTransport {
     }
   }
 
-  private notifyAuthenticationRequired(error: TcgplayerApiError): void {
+  private notifyAuthenticationRequired(
+    error: TcgplayerApiError,
+    sessionRevision?: string,
+  ): void {
     if (
       error.code !== "AUTHENTICATION_REQUIRED" ||
       this.authenticationNotifications.has(error)
@@ -457,7 +466,9 @@ export class SellerHttpTransport {
     }
     this.authenticationNotifications.add(error);
     try {
-      const result = this.options.onAuthenticationRequired?.(error);
+      const result = this.options.onAuthenticationRequired?.(error, {
+        ...(sessionRevision === undefined ? {} : { sessionRevision }),
+      });
       if (result !== undefined)
         void Promise.resolve(result).catch(() => undefined);
     } catch {
@@ -468,13 +479,14 @@ export class SellerHttpTransport {
   authenticationRequired(
     message: string,
     options: TcgplayerApiErrorOptions,
+    sessionRevision?: string,
   ): TcgplayerApiError {
     const error = new TcgplayerApiError(
       "AUTHENTICATION_REQUIRED",
       message,
       options,
     );
-    this.notifyAuthenticationRequired(error);
+    this.notifyAuthenticationRequired(error, sessionRevision);
     return error;
   }
 
@@ -586,6 +598,9 @@ export class SellerHttpTransport {
             response,
             bytes: new Uint8Array(),
             contentType: contentType(response),
+            ...(session.revision === undefined
+              ? {}
+              : { sessionRevision: session.revision }),
           };
         }
 
@@ -600,10 +615,13 @@ export class SellerHttpTransport {
           response,
           bytes,
           contentType: contentType(response),
+          ...(session.revision === undefined
+            ? {}
+            : { sessionRevision: session.revision }),
         };
       } catch (error) {
         if (isTcgplayerApiError(error)) {
-          this.notifyAuthenticationRequired(error);
+          this.notifyAuthenticationRequired(error, session.revision);
           throw error;
         }
         if (spec.signal?.aborted) {

@@ -290,6 +290,39 @@ describe("TcgplayerSellerClient orders and fulfillment", () => {
     expect(onAuthenticationRequired).toHaveBeenCalledOnce();
     expect(onAuthenticationRequired).toHaveBeenCalledWith(
       expect.objectContaining({ code: "AUTHENTICATION_REQUIRED" }),
+      {},
+    );
+  });
+
+  it("identifies the session revision used by a late authentication failure", async () => {
+    let resolveResponse: ((response: Response) => void) | undefined;
+    const fetchImplementation = vi.fn(
+      () =>
+        new Promise<Response>((resolvePromise) => {
+          resolveResponse = resolvePromise;
+        }),
+    );
+    let sessionRevision = "old-session";
+    const onAuthenticationRequired = vi.fn();
+    const client = clientWith(fetchImplementation, {
+      session: () => ({
+        authCookie: `synthetic-cookie-${sessionRevision}`,
+        revision: sessionRevision,
+      }),
+      onAuthenticationRequired,
+    });
+
+    const request = client.searchOrders({ sellerKey: syntheticSellerKey });
+    await vi.waitFor(() => expect(fetchImplementation).toHaveBeenCalledOnce());
+    sessionRevision = "replacement-session";
+    resolveResponse?.(jsonResponse({}, 401));
+
+    await expect(request).rejects.toMatchObject({
+      code: "AUTHENTICATION_REQUIRED",
+    });
+    expect(onAuthenticationRequired).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "AUTHENTICATION_REQUIRED" }),
+      { sessionRevision: "old-session" },
     );
   });
 

@@ -41,6 +41,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page instead of seller API data. Refresh the authorized session.",
         errorOptions(response),
+        result.sessionRevision,
       );
     }
     if (type !== "application/json" && !type.endsWith("+json")) {
@@ -160,6 +161,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page instead of seller payout data. Refresh the authorized session.",
         errorOptions(response),
+        result.sessionRevision,
       );
     }
     if (
@@ -221,6 +223,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page instead of account capability data. Refresh the authorized session.",
         errorOptions(response),
+        result.sessionRevision,
       );
     }
     if (
@@ -294,6 +297,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page for a seller message change. Refresh the authorized session and reconcile the conversation.",
         errorOptions(result.response),
+        result.sessionRevision,
       );
     }
   }
@@ -326,6 +330,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         `TCGplayer returned an HTML page instead of ${description} data. Refresh the authorized session.`,
         errorOptions(response),
+        result.sessionRevision,
       );
     }
     if (
@@ -425,6 +430,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned a login page instead of legacy payment data. Refresh the authorized session.",
         errorOptions(response),
+        result.sessionRevision,
       );
     }
     return value;
@@ -449,6 +455,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page instead of a packing slip. Refresh the authorized session.",
         errorOptions(response),
+        result.sessionRevision,
       );
     }
 
@@ -490,6 +497,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page instead of seller export data. Refresh the authorized session.",
         errorOptions(response),
+        result.sessionRevision,
       );
     }
     if (
@@ -532,6 +540,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page for a fulfillment mutation. Refresh the authorized session and reconcile the order.",
         errorOptions(result.response),
+        result.sessionRevision,
       );
     }
   }
@@ -556,6 +565,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page for a seller mutation. Refresh the authorized session and reconcile the affected resource.",
         errorOptions(result.response),
+        result.sessionRevision,
       );
     }
   }
@@ -596,6 +606,7 @@ export class SellerApiTransport {
       throw this.http.authenticationRequired(
         "TCGplayer returned an HTML page for a fulfillment mutation. Refresh the authorized session and reconcile the order.",
         errorOptions(response),
+        result.sessionRevision,
       );
     }
     if (

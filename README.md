@@ -64,14 +64,20 @@ expiration without wrapping every client method:
 
 ```ts
 const client = createTcgplayerSellerClient({
-  session: () => sessionStore.current(),
-  onAuthenticationRequired: (error) => sessionStore.expire(error),
+  session: () => ({
+    ...sessionStore.current(),
+    revision: sessionStore.revision(),
+  }),
+  onAuthenticationRequired: (error, context) =>
+    sessionStore.expire(error, context.sessionRevision),
 });
 ```
 
 The observer does not refresh or persist credentials. It is a notification
 boundary for the caller, and an observer failure never replaces the original
-`AUTHENTICATION_REQUIRED` error.
+`AUTHENTICATION_REQUIRED` error. For replaceable credentials, an optional
+caller-owned session `revision` is returned as `context.sessionRevision` so a
+late failure from an older in-flight request cannot expire a newer session.
 
 Validate the current session and discover its seller key without any prior account configuration:
 

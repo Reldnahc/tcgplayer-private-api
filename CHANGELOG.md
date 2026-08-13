@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.18.0 - Unreleased
+
+- Allow callers to attach a non-secret revision to replaceable sessions and
+  return that revision to the authentication-required observer, preventing a
+  late failure from an older request from expiring replacement credentials.
+
 ## 0.17.0 - Unreleased
 
 - Preserve validated, provider-supplied card types on marketplace-product
