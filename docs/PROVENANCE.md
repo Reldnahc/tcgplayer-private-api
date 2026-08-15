@@ -127,6 +127,14 @@ exact `productId` term batch returns product `customAttributes.color` arrays
 without requiring one product-detail request per card. The package exposes only
 validated color strings and omits the optional field when the source has none.
 
+A read-only public marketplace observation on 2026-08-15 confirmed that the
+same exact-product batch returns product-line-specific `customAttributes`.
+Observed non-sensitive schema included Magic type, mana value, power, and
+toughness; Pokemon stage, energy, and HP; Lorcana ink, strength, willpower, and
+lore; and YuGiOh attribute, level, attack, and defense. The package exposes
+bounded scalar and array values through a normalized attribute map. No seller
+or listing data was retained.
+
 An opt-in, read-only compatibility check against an authorized seller account on 2026-08-03 confirmed order search, exact-order confirmation, order-detail retrieval, packing-slip export, and pull-sheet export. No response bodies, credentials, order values, customer data, tracking values, or document bytes were retained.
 
 The schema-only observations needed for compatibility were:

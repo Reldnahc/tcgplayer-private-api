@@ -78,6 +78,66 @@ function optionalStringArray(
   return value.map((item, index) => text(item, `${path}[${String(index)}]`));
 }
 
+const MAX_PRODUCT_ATTRIBUTES = 64;
+const MAX_PRODUCT_ATTRIBUTE_VALUES = 32;
+const PRODUCT_ATTRIBUTE_KEY = /^[A-Za-z][A-Za-z0-9]{0,63}$/u;
+
+function attributeScalar(value: unknown, path: string): string | undefined {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (normalized.length === 0) return undefined;
+    if (value.length > 2048) {
+      return invalidResponse(`${path} must be no longer than 2048 characters.`);
+    }
+    return normalized;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      return invalidResponse(`${path} must be finite.`);
+    }
+    return String(value);
+  }
+  if (typeof value === "boolean") return String(value);
+  return undefined;
+}
+
+function productAttributes(
+  source: UnknownRecord,
+  path: string,
+): Readonly<Record<string, readonly string[]>> {
+  const entries = Object.entries(source);
+  if (entries.length > MAX_PRODUCT_ATTRIBUTES) {
+    return invalidResponse(
+      `${path} must contain at most ${String(MAX_PRODUCT_ATTRIBUTES)} fields.`,
+    );
+  }
+  const attributes: Record<string, readonly string[]> = {};
+  for (const [key, value] of entries) {
+    if (
+      !PRODUCT_ATTRIBUTE_KEY.test(key) ||
+      value === undefined ||
+      value === null
+    ) {
+      continue;
+    }
+    const values = Array.isArray(value) ? value : [value];
+    if (values.length > MAX_PRODUCT_ATTRIBUTE_VALUES) {
+      return invalidResponse(
+        `${path}.${key} must contain at most ${String(MAX_PRODUCT_ATTRIBUTE_VALUES)} values.`,
+      );
+    }
+    const normalized = values
+      .map((item, index) =>
+        attributeScalar(item, `${path}.${key}[${String(index)}]`),
+      )
+      .filter((item): item is string => item !== undefined);
+    if (normalized.length > 0) {
+      attributes[key] = [...new Set(normalized)];
+    }
+  }
+  return attributes;
+}
+
 function parseListing(value: unknown, path: string): MarketplaceListing {
   const source = record(value, path);
   const customDataSource =
@@ -161,6 +221,10 @@ function parseProduct(value: unknown, path: string): MarketplaceProduct {
     source.customAttributes === undefined || source.customAttributes === null
       ? {}
       : record(source.customAttributes, `${path}.customAttributes`);
+  const attributes = productAttributes(
+    customAttributes,
+    `${path}.customAttributes`,
+  );
   const parsedColors = optionalStringArray(
     customAttributes.color,
     `${path}.customAttributes.color`,
@@ -185,6 +249,7 @@ function parseProduct(value: unknown, path: string): MarketplaceProduct {
     rarityName: optionalText(source.rarityName, `${path}.rarityName`),
     ...(colors === undefined ? {} : { colors }),
     ...(cardTypes === undefined ? {} : { cardTypes }),
+    attributes,
     marketPrice: finite(source.marketPrice ?? 0, `${path}.marketPrice`),
     ...(lowestPrice === undefined ? {} : { lowestPrice }),
     ...(lowestPriceWithShipping === undefined

@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented here.
 
+## 0.19.0 - Unreleased
+
+- Preserve bounded, validated product-line-specific marketplace attributes on
+  exact product searches so consumers can use fields such as type, power, HP,
+  ink, attack, and defense without handling raw provider responses.
+
 ## 0.18.1 - Unreleased
 
 - Do not notify the global authentication observer when a request that

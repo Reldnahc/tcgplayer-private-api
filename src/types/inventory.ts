@@ -195,6 +195,8 @@ export interface MarketplaceProduct {
   readonly colors?: readonly string[];
   /** Provider-supplied card types when the product line defines them. */
   readonly cardTypes?: readonly string[];
+  /** Validated product-line-specific metadata normalized to string arrays. */
+  readonly attributes?: Readonly<Record<string, readonly string[]>>;
   readonly marketPrice: number;
   readonly lowestPrice?: number;
   readonly lowestPriceWithShipping?: number;
